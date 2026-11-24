@@ -1,0 +1,127 @@
+<!-- 电商管理后台扩展组件 -->
+<style>
+/* ========== 商品卡片 ========== */
+.ext-product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+.ext-product-card{background:var(--card);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm);transition:all .2s;cursor:pointer}
+.ext-product-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.ext-product-card-img{height:160px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:36px;color:#d1d5db}
+.ext-product-card-body{padding:12px 14px}
+.ext-product-card-name{font-size:14px;font-weight:500;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ext-product-card-price{font-size:18px;font-weight:600;color:var(--red)}
+.ext-product-card-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--text3);margin-top:6px}
+
+/* ========== SKU选择器 ========== */
+.ext-sku-panel{padding:16px;background:var(--card);border-radius:12px;border:1px solid var(--border)}
+.ext-sku-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.ext-sku-row:last-child{margin-bottom:0}
+.ext-sku-label{font-size:13px;font-weight:500;color:var(--text2);width:60px;flex-shrink:0;line-height:32px}
+.ext-sku-tag{padding:4px 14px;border:1px solid var(--border);border-radius:6px;font-size:13px;cursor:pointer;transition:all .15s;background:var(--card)}
+.ext-sku-tag:hover{border-color:var(--accent);color:var(--accent)}
+.ext-sku-tag.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.ext-sku-result{margin-top:14px;padding-top:14px;border-top:1px solid var(--border-light);display:flex;justify-content:space-between;align-items:center}
+.ext-sku-result-price{font-size:20px;font-weight:700;color:var(--red)}
+.ext-sku-result-stock{font-size:13px;color:var(--text3)}
+.ext-sku-result-stock span{color:var(--text);font-weight:500}
+
+/* ========== 订单时间线 ========== */
+.ext-timeline-wrap{padding:16px;background:var(--card);border-radius:12px;border:1px solid var(--border)}
+.ext-timeline-title{font-size:15px;font-weight:600;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border-light)}
+.ext-timeline{position:relative;padding-left:24px}
+.ext-timeline::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:var(--border-light)}
+.ext-timeline-item{position:relative;padding-bottom:20px}
+.ext-timeline-item:last-child{padding-bottom:0}
+.ext-timeline-item::before{content:'';position:absolute;left:-17px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--accent);border:2px solid var(--card);z-index:1}
+.ext-timeline-item.done::before{background:var(--green)}
+.ext-timeline-item.pending::before{background:var(--amber)}
+.ext-timeline-item.cancelled::before{background:var(--text3)}
+.ext-timeline-item .time{font-size:11px;color:var(--text3)}
+.ext-timeline-item .desc{font-size:13px;color:var(--text);margin-top:2px}
+.ext-timeline-item .note{font-size:12px;color:var(--text3);margin-top:2px}
+
+/* ========== 物流追踪步骤条 ========== */
+.ext-step-bar-wrap{padding:16px;background:var(--card);border-radius:12px;border:1px solid var(--border)}
+.ext-step-bar{display:flex;align-items:flex-start;justify-content:space-between;padding:16px 0;position:relative}
+.ext-step-bar::before{content:'';position:absolute;top:28px;left:24px;right:24px;height:2px;background:var(--border-light);z-index:0}
+.ext-step{display:flex;flex-direction:column;align-items:center;gap:4px;z-index:1;flex:1;text-align:center}
+.ext-step-dot{width:24px;height:24px;border-radius:50%;background:var(--border-light);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text3);font-weight:600}
+.ext-step.active .ext-step-dot{background:var(--accent);color:#fff}
+.ext-step.done .ext-step-dot{background:var(--green);color:#fff}
+.ext-step-label{font-size:11px;color:var(--text3);margin-top:4px}
+.ext-step.active .ext-step-label{color:var(--text);font-weight:500}
+.ext-step-date{font-size:10px;color:var(--text3)}
+
+/* ========== 分类树 ========== */
+.ext-tree{padding:8px 0;background:var(--card);border-radius:12px;border:1px solid var(--border)}
+.ext-tree-item{padding:4px 0}
+.ext-tree-toggle{display:flex;align-items:center;gap:6px;padding:6px 14px;cursor:pointer;border-radius:6px;transition:background .15s;font-size:14px;color:var(--text);user-select:none}
+.ext-tree-toggle:hover{background:var(--bg-hover)}
+.ext-tree-toggle .arrow{font-size:10px;transition:transform .2s;color:var(--text3);width:14px;text-align:center}
+.ext-tree-toggle .arrow.open{transform:rotate(90deg)}
+.ext-tree-toggle .count{font-size:12px;color:var(--text3);margin-left:auto}
+.ext-tree-children{padding-left:28px;overflow:hidden;max-height:0;transition:max-height .25s ease}
+.ext-tree-children.open{max-height:500px}
+.ext-tree-leaf{display:flex;align-items:center;gap:6px;padding:5px 14px;cursor:pointer;border-radius:6px;transition:background .15s;font-size:13px;color:var(--text2)}
+.ext-tree-leaf:hover{background:var(--bg-hover);color:var(--text)}
+.ext-tree-leaf .leaf-count{font-size:11px;color:var(--text3);margin-left:auto}
+</style>
+<script>
+(function() {
+  'use strict';
+  // SKU选择器逻辑
+  document.querySelectorAll('.ext-sku-panel').forEach(function(panel) {
+    var tags = panel.querySelectorAll('.ext-sku-tag');
+    var priceEl = panel.querySelector('.ext-sku-result-price');
+    var stockEl = panel.querySelector('.ext-sku-result-stock span');
+    var skuData = {
+      '红色-128G': {price: 5999, stock: 128},
+      '红色-256G': {price: 6499, stock: 96},
+      '蓝色-128G': {price: 5899, stock: 72},
+      '蓝色-256G': {price: 6399, stock: 54},
+      '黑色-128G': {price: 5799, stock: 203},
+      '黑色-256G': {price: 6299, stock: 167}
+    };
+    tags.forEach(function(tag) {
+      tag.addEventListener('click', function() {
+        var row = this.closest('.ext-sku-row');
+        row.querySelectorAll('.ext-sku-tag').forEach(function(t) { t.classList.remove('active'); });
+        this.classList.add('active');
+        var selected = [];
+        panel.querySelectorAll('.ext-sku-tag.active').forEach(function(t) { selected.push(t.textContent.trim()); });
+        var key = selected.join('-');
+        if (skuData[key]) {
+          priceEl.textContent = '\u00a5' + skuData[key].price.toLocaleString();
+          stockEl.textContent = skuData[key].stock;
+        }
+      });
+    });
+    // 默认选中第一个
+    var rows = panel.querySelectorAll('.ext-sku-row');
+    rows.forEach(function(row) {
+      var first = row.querySelector('.ext-sku-tag');
+      if (first) first.classList.add('active');
+    });
+    var firstKey = [];
+    rows.forEach(function(r) {
+      var a = r.querySelector('.ext-sku-tag.active');
+      if (a) firstKey.push(a.textContent.trim());
+    });
+    var def = skuData[firstKey.join('-')];
+    if (def) { priceEl.textContent = '\u00a5' + def.price.toLocaleString(); stockEl.textContent = def.stock; }
+  });
+
+  // 分类树展开/折叠
+  document.querySelectorAll('.ext-tree-toggle').forEach(function(toggle) {
+    toggle.addEventListener('click', function() {
+      var arrow = this.querySelector('.arrow');
+      var children = this.nextElementSibling;
+      if (children && children.classList.contains('ext-tree-children')) {
+        arrow.classList.toggle('open');
+        children.classList.toggle('open');
+      }
+    });
+  });
+})();
+</script>
+
+<!-- 使用示例 -->
+<!-- <link rel="stylesheet" href="desktop-extensions/ecommerce.html"> (用模板字符串注入) -->

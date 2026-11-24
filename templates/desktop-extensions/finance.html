@@ -1,0 +1,124 @@
+<!-- 金融管理后台扩展组件 -->
+<style>
+/* ========== 金额输入器 ========== */
+.ext-amount-input-wrap{padding:16px;background:var(--card);border-radius:12px;border:1px solid var(--border)}
+.ext-amount-input-label{font-size:13px;font-weight:500;color:var(--text2);margin-bottom:8px}
+.ext-amount-input-box{display:flex;align-items:center;gap:8px;background:var(--bg);border:2px solid var(--border);border-radius:10px;padding:4px 16px;transition:border-color .2s}
+.ext-amount-input-box:focus-within{border-color:var(--accent)}
+.ext-amount-input-box .currency{font-size:20px;font-weight:600;color:var(--text2)}
+.ext-amount-input-box input{flex:1;border:none;background:transparent;font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;outline:none;padding:10px 0;color:var(--text)}
+.ext-amount-input-box input::placeholder{color:var(--text3);font-weight:400}
+.ext-amount-input-box .unit{font-size:14px;color:var(--text3);white-space:nowrap}
+.ext-amount-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.ext-amount-quick{padding:4px 14px;border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;background:var(--card);color:var(--text2);transition:all .15s}
+.ext-amount-quick:hover{border-color:var(--accent);color:var(--accent)}
+.ext-amount-formatted{font-size:12px;color:var(--text3);margin-top:8px;text-align:right}
+
+/* ========== 对账单表格 ========== */
+.ext-statement-wrap{padding:16px;background:var(--card);border-radius:12px;border:1px solid var(--border);overflow-x:auto}
+.ext-statement-table{width:100%;border-collapse:collapse;font-size:13px}
+.ext-statement-table th{text-align:left;padding:10px 12px;font-weight:500;color:var(--text2);border-bottom:2px solid var(--border-light);white-space:nowrap}
+.ext-statement-table td{padding:10px 12px;border-bottom:1px solid var(--border-light)}
+.ext-statement-table tr:hover td{background:var(--bg-hover)}
+.ext-statement-table .num{font-variant-numeric:tabular-nums;text-align:right;font-family:inherit}
+.ext-statement-table .amount-in{color:var(--green);font-weight:600}
+.ext-statement-table .amount-out{color:var(--red);font-weight:600}
+.ext-statement-table .amount-zero{color:var(--text3)}
+.ext-statement-table .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
+.ext-statement-table .badge.success{background:rgba(34,197,94,.12);color:var(--green)}
+.ext-statement-table .badge.warning{background:rgba(245,158,11,.12);color:var(--amber)}
+.ext-statement-table .badge.error{background:rgba(239,68,68,.12);color:var(--red)}
+.ext-statement-table .badge.info{background:rgba(59,130,246,.12);color:var(--accent)}
+
+/* ========== 审批流卡片 ========== */
+.ext-approval-card{padding:16px;background:var(--card);border-radius:12px;border:1px solid var(--border);transition:box-shadow .2s}
+.ext-approval-card:hover{box-shadow:var(--shadow-sm)}
+.ext-approval-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.ext-approval-title{font-size:14px;font-weight:600;color:var(--text)}
+.ext-approval-amount{font-size:16px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+.ext-approval-body{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--border-light);border-bottom:1px solid var(--border-light)}
+.ext-approval-avatar{width:36px;height:36px;border-radius:50%;background:var(--accent-light);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--accent);flex-shrink:0}
+.ext-approval-info{flex:1}
+.ext-approval-name{font-size:13px;font-weight:500;color:var(--text)}
+.ext-approval-time{font-size:11px;color:var(--text3);margin-top:2px}
+.ext-approval-status{padding:3px 10px;border-radius:6px;font-size:12px;font-weight:500}
+.ext-approval-status.pending{background:rgba(245,158,11,.12);color:var(--amber)}
+.ext-approval-status.approved{background:rgba(34,197,94,.12);color:var(--green)}
+.ext-approval-status.rejected{background:rgba(239,68,68,.12);color:var(--red)}
+.ext-approval-actions{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}
+.ext-approval-btn{padding:6px 18px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;border:none}
+.ext-approval-btn.approve{background:var(--accent);color:#fff}
+.ext-approval-btn.approve:hover{opacity:.85}
+.ext-approval-btn.reject{background:transparent;border:1px solid var(--border);color:var(--text2)}
+.ext-approval-btn.reject:hover{border-color:var(--red);color:var(--red)}
+
+/* ========== 统计卡片（sparkline） ========== */
+.ext-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.ext-stat-card{padding:16px 18px;background:var(--card);border-radius:12px;border:1px solid var(--border);transition:box-shadow .2s}
+.ext-stat-card:hover{box-shadow:var(--shadow-sm)}
+.ext-stat-label{font-size:12px;color:var(--text3);margin-bottom:4px}
+.ext-stat-value{font-size:26px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+.ext-stat-change{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:500;margin-top:2px}
+.ext-stat-change.up{color:var(--green)}
+.ext-stat-change.down{color:var(--red)}
+.ext-stat-sparkline{margin-top:8px;height:32px;display:flex;align-items:flex-end;gap:2px}
+.ext-stat-sparkline .bar{flex:1;min-height:4px;border-radius:2px 2px 0 0;background:var(--accent);opacity:.5;transition:opacity .2s}
+.ext-stat-sparkline:hover .bar{opacity:.8}
+.ext-stat-sparkline .bar.high{opacity:1}
+.ext-stat-footer{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:6px}
+
+/* ========== 账户余额展示 ========== */
+.ext-balance-card{padding:20px;background:linear-gradient(135deg,var(--accent),#1d4ed8);border-radius:14px;color:#fff;position:relative;overflow:hidden}
+.ext-balance-card::after{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.08)}
+.ext-balance-label{font-size:12px;opacity:.8;margin-bottom:4px}
+.ext-balance-amount{font-size:32px;font-weight:700;font-variant-numeric:tabular-nums;margin-bottom:16px}
+.ext-balance-progress{height:4px;background:rgba(255,255,255,.2);border-radius:4px;overflow:hidden;margin-bottom:8px}
+.ext-balance-progress .fill{height:100%;background:rgba(255,255,255,.85);border-radius:4px;transition:width .6s ease}
+.ext-balance-details{display:flex;justify-content:space-between;font-size:12px;opacity:.85;padding-top:12px;border-top:1px solid rgba(255,255,255,.15)}
+.ext-balance-details .item{text-align:center}
+.ext-balance-details .item .val{font-weight:600;font-variant-numeric:tabular-nums}
+.ext-frozen-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;background:rgba(255,255,255,.15);font-size:11px;margin-left:6px}
+</style>
+<script>
+(function() {
+  'use strict';
+  // 金额输入器格式化
+  document.querySelectorAll('.ext-amount-input-box input').forEach(function(input) {
+    var formattedEl = input.closest('.ext-amount-input-wrap').querySelector('.ext-amount-formatted');
+    input.addEventListener('input', function() {
+      var raw = this.value.replace(/[^\d.]/g, '');
+      if (raw) {
+        var parts = raw.split('.');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        raw = parts.join('.');
+      }
+      if (formattedEl) formattedEl.textContent = raw ? '\u00a5 ' + raw : '';
+    });
+
+    // 快捷金额
+    var quickBtns = input.closest('.ext-amount-input-wrap').querySelectorAll('.ext-amount-quick');
+    quickBtns.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        input.value = this.dataset.amount;
+        input.dispatchEvent(new Event('input'));
+      });
+    });
+  });
+
+  // 审批流按钮
+  document.querySelectorAll('.ext-approval-btn.approve, .ext-approval-btn.reject').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var card = this.closest('.ext-approval-card');
+      var statusEl = card.querySelector('.ext-approval-status');
+      var isApprove = this.classList.contains('approve');
+      statusEl.className = 'ext-approval-status ' + (isApprove ? 'approved' : 'rejected');
+      statusEl.textContent = isApprove ? '\u5df2\u901a\u8fc7' : '\u5df2\u62d2\u7edd';
+      var actions = card.querySelector('.ext-approval-actions');
+      if (actions) actions.innerHTML = '<span style="font-size:12px;color:var(--text3)">\u5df2\u5904\u7406</span>';
+    });
+  });
+})();
+</script>
+
+<!-- 使用示例 -->
+<!-- <link rel="stylesheet" href="desktop-extensions/finance.html"> (用模板字符串注入) -->
