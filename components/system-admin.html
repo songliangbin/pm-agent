@@ -1,0 +1,1334 @@
+<!-- ============================================================
+     ╔═══════════════════════════════════════════════════════════════╗
+     ║  系统管理标准模块组件  System Admin Standard Module           ║
+     ║  版本: v1.1  ·  来源: 平台管理端原型（M50/M52 行业标准版）    ║
+     ║  含 5 页面: 我的组织 / 角色权限 / 菜单配置 / 字典配置 / 操作日志 ║
+     ║  v1.1: 部门树支持三级 + 操作下拉菜单（修改/重命名/置顶/       ║
+     ║        添加子部门/删除，置顶首位不显示）                      ║
+     ╚═══════════════════════════════════════════════════════════════╝
+
+     【复用铁律】生成管理后台原型时，本模块整体复用，禁止重写结构/函数/样式：
+       ① 页面 HTML → 复制到 <body> 页面容器区
+       ② 弹窗 HTML → 复制到 <body> 弹窗区
+       ③ CSS       → 复制到 <style> 内（若模板已含则跳过）
+       ④ JS 函数   → 复制到 <script> 内（DOMReady 之前）
+       ⑤ 数据      → 替换到 demoData（仅替换【变量】示例内容）
+     Lint 白名单强制校验: page-org/roles/menus/dicts/logs + 核心函数，
+     缺失任何一项即失败，保证 100% 复用。
+     ============================================================ -->
+
+<!-- ============================================================
+     ① 页面 HTML 区块（复制到页面容器区）
+     ============================================================ -->
+<!-- 【变量】以下 5 个页面为系统管理标准布局，禁止改动结构；
+     页头 desc 文案、表头列名可按项目微调，但功能列（操作列）必须保留 -->
+
+<div class="page" id="page-org">
+  <div class="page-header"><h2>我的组织</h2><p class="page-desc">管理组织架构与成员，支持部门与成员增删改查</p></div>
+  <div class="org-layout">
+    <div class="org-tree">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+        <span>部门架构</span>
+        <button class="btn btn-sm btn-primary" onclick="openDeptAdd()"><i class="fa-solid fa-plus"></i> 新增</button>
+      </div>
+      <div id="deptTree"></div>
+    </div>
+    <div class="org-members">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+        <span id="orgMemberTitle">全部成员（8人）</span>
+        <button class="btn btn-sm btn-primary" onclick="openMemberAdd()"><i class="fa-solid fa-user-plus"></i> 新增成员</button>
+      </div>
+      <table class="data-table"><thead><tr><th>姓名</th><th>手机号</th><th>部门</th><th>角色</th><th>状态</th><th>操作</th></tr></thead><tbody id="membersTableBody"></tbody></table>
+      <div class="table-footer"><div class="pages" id="orgPager"></div></div>
+    </div>
+  </div>
+</div>
+
+
+
+<div class="page" id="page-roles">
+  <div class="page-header"><h2>角色权限</h2><p class="page-desc">管理平台角色及菜单权限分配</p></div>
+  <div class="table-toolbar">
+    <div class="filter-bar">
+      <div class="filter-search"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="rolesSearch" placeholder="搜索角色名称" onkeydown="if(event.key==='Enter')filterRoles()"></div>
+      <div class="filter-btn-group"><button class="btn-search" onclick="filterRoles()"><i class="fa-solid fa-magnifying-glass"></i>搜索</button><button class="btn-reset" onclick="resetRoles()"><i class="fa-solid fa-rotate-left"></i>重置</button></div>
+    </div>
+    <div class="filter-actions"><button class="btn btn-primary btn-sm" onclick="openRoleAdd()"><i class="fa-solid fa-plus"></i> 新增角色</button></div>
+  </div>
+  <table class="data-table"><thead><tr><th>角色名称</th><th>角色说明</th><th>权限范围</th><th>成员数</th><th>状态</th><th>操作</th></tr></thead><tbody id="rolesTableBody"></tbody></table>
+  <div class="table-footer"><div class="pages" id="rolesPager"></div></div>
+</div>
+
+
+
+<div class="page" id="page-menus">
+  <div class="page-header"><h2>菜单配置</h2><p class="page-desc">管理后台菜单树与权限标识（目录 / 菜单 / 按钮 三级结构）</p></div>
+  <div class="menu-stat-row">
+    <div class="menu-stat"><span class="menu-stat-num" id="menuStatDir">0</span><span class="menu-stat-label">目录</span><i class="fa-solid fa-folder-open menu-stat-icon"></i></div>
+    <div class="menu-stat"><span class="menu-stat-num" id="menuStatMenu">0</span><span class="menu-stat-label">菜单</span><i class="fa-solid fa-file-lines menu-stat-icon"></i></div>
+    <div class="menu-stat"><span class="menu-stat-num" id="menuStatBtn">0</span><span class="menu-stat-label">按钮</span><i class="fa-solid fa-bolt menu-stat-icon"></i></div>
+    <div class="menu-stat"><span class="menu-stat-num" id="menuStatTotal">0</span><span class="menu-stat-label">总数</span><i class="fa-solid fa-sitemap menu-stat-icon"></i></div>
+  </div>
+  <div class="table-toolbar">
+    <div class="filter-bar">
+      <div class="filter-search"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="menusSearch" placeholder="搜索名称 / 路由 / 权限标识" onkeydown="if(event.key==='Enter')renderMenus()"></div>
+      <select class="filter-select" id="menusTypeFilter" onchange="renderMenus()"><option value="">全部类型</option><option value="目录">目录</option><option value="菜单">菜单</option><option value="按钮">按钮</option></select>
+      <select class="filter-select" id="menusStatusFilter" onchange="renderMenus()"><option value="">全部状态</option><option value="active">启用</option><option value="disabled">禁用</option></select>
+      <div class="filter-btn-group"><button class="btn-search" onclick="renderMenus()"><i class="fa-solid fa-magnifying-glass"></i>搜索</button><button class="btn-reset" onclick="resetMenus()"><i class="fa-solid fa-rotate-left"></i>重置</button></div>
+    </div>
+    <div class="filter-actions"><button class="btn btn-primary btn-sm" onclick="openMenuAdd('')"><i class="fa-solid fa-plus"></i> 新增菜单</button></div>
+  </div>
+  <table class="data-table menu-table"><thead><tr><th style="min-width:220px">菜单名称</th><th>图标</th><th>路由地址</th><th>权限标识</th><th>类型</th><th>排序</th><th>状态</th><th style="width:210px">操作</th></tr></thead><tbody id="menusTableBody"></tbody></table>
+  <div class="table-footer"><div class="pages" id="menusPager"></div><span class="table-count" id="menusCount"></span></div>
+</div>
+
+
+
+<div class="page" id="page-dicts">
+  <div class="page-header"><h2>字典配置</h2><p class="page-desc">管理系统枚举字典数据，支持增删改查</p></div>
+  <div class="table-toolbar">
+    <div class="filter-bar">
+      <div class="filter-search"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="dictsSearch" placeholder="搜索字典名称/编码" onkeydown="if(event.key==='Enter')filterDicts()"></div>
+      <div class="filter-btn-group"><button class="btn-search" onclick="filterDicts()"><i class="fa-solid fa-magnifying-glass"></i>搜索</button><button class="btn-reset" onclick="resetDicts()"><i class="fa-solid fa-rotate-left"></i>重置</button></div>
+    </div>
+    <div class="filter-actions"><button class="btn btn-primary btn-sm" onclick="openDictAdd()"><i class="fa-solid fa-plus"></i> 新增字典</button></div>
+  </div>
+  <table class="data-table"><thead><tr><th>名称</th><th>编码</th><th>键值项</th><th>状态</th><th>操作</th></tr></thead><tbody id="dictsTableBody"></tbody></table>
+  <div class="table-footer"><div class="pages" id="dictsPager"></div></div>
+</div>
+
+
+
+<div class="page" id="page-logs">
+  <div class="page-header"><h2>操作日志</h2><p class="page-desc">记录平台所有管理操作行为审计</p></div>
+  <div class="table-toolbar">
+    <div class="filter-bar">
+      <div class="filter-search"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="logsSearch" placeholder="搜索操作人/模块" onkeydown="if(event.key==='Enter')filterLogs()"></div>
+      <div class="filter-btn-group"><button class="btn-search" onclick="filterLogs()"><i class="fa-solid fa-magnifying-glass"></i>搜索</button><button class="btn-reset" onclick="resetLogs()"><i class="fa-solid fa-rotate-left"></i>重置</button></div>
+    </div>
+    <div class="filter-actions"></div>
+  </div>
+  <table class="data-table"><thead><tr><th>操作人</th><th>模块</th><th>内容</th><th>IP</th><th>时间</th></tr></thead><tbody id="logsTableBody"></tbody></table>
+  <div class="table-footer"><div class="pages" id="logsPager"></div></div>
+</div>
+
+
+<!-- ============================================================
+     ② 弹窗 HTML 区块（复制到弹窗区）
+     ============================================================ -->
+<!-- 【变量】弹窗标题/占位文案可微调，表单字段与 id 禁止改动 -->
+
+<!-- 角色权限两步向导弹窗 -->
+<div class="modal-overlay" id="roleWizard-overlay">
+  <div class="modal" id="roleWizard" style="width:560px">
+    <div class="modal-header"><h3 id="roleWizardTitle">新增角色</h3><button class="modal-close" onclick="closeModal('roleWizard')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="roleWizardId">
+      <div class="wizard-steps" style="display:flex;gap:0;margin-bottom:20px">
+        <div class="wizard-step active" id="wizardStep1Indicator" style="flex:1;padding:10px;text-align:center;background:var(--accent-bg);color:var(--accent);font-weight:600;border-radius:8px 0 0 8px">1. 基本信息</div>
+        <div class="wizard-step" id="wizardStep2Indicator" style="flex:1;padding:10px;text-align:center;background:var(--border-light);color:var(--text3);font-weight:600;border-radius:0 8px 8px 0">2. 权限配置</div>
+      </div>
+      <div id="roleStep1">
+        <div class="form-row"><label class="info-label">角色名称 <span style="color:var(--red)">*</span></label><input type="text" class="modal-input" id="roleWizardName" placeholder="请输入角色名称"></div>
+        <div class="form-row"><label class="info-label">角色说明</label><textarea class="modal-input" id="roleWizardDesc" rows="3" placeholder="请输入角色说明"></textarea></div>
+      </div>
+      <div id="roleStep2" style="display:none">
+        <p style="font-size:13px;color:var(--text3);margin-bottom:12px">勾选该角色可访问的菜单权限：</p>
+        <div id="rolePermTree" style="max-height:320px;overflow-y:auto"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div id="roleFooter1"><button class="btn btn-default" onclick="closeModal('roleWizard')">取消</button><button class="btn btn-primary" onclick="roleWizardNext()">下一步</button></div>
+      <div id="roleFooter2" style="display:none"><button class="btn btn-default" onclick="roleWizardPrev()">上一步</button><button class="btn btn-default" onclick="closeModal('roleWizard')">取消</button><button class="btn btn-primary" onclick="roleWizardSave()">确定</button></div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- 成员编辑弹窗 -->
+<div class="modal-overlay" id="memberEdit-overlay">
+  <div class="modal" id="memberEdit" style="width:460px">
+    <div class="modal-header"><h3 id="memberEditTitle">新增成员</h3><button class="modal-close" onclick="closeModal('memberEdit')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="memberEditId">
+      <div class="form-row"><label class="info-label">姓名 <span style="color:var(--red)">*</span></label><input type="text" class="modal-input" id="memberEditName" placeholder="请输入姓名"></div>
+      <div class="form-row"><label class="info-label">手机号 <span style="color:var(--red)">*</span></label><input type="text" class="modal-input" id="memberEditPhone" placeholder="请输入手机号"></div>
+      <div class="form-row"><label class="info-label">部门</label><select class="modal-input" id="memberEditDept"><option value="root">校园二手交易平台</option><option value="tech">技术部</option><option value="ops">运营部</option><option value="cs">客服部</option><option value="fin">财务部</option></select></div>
+      <div class="form-row"><label class="info-label">角色</label><input type="text" class="modal-input" id="memberEditRole" placeholder="请输入角色"></div>
+      <div class="form-row"><label class="info-label">状态</label><select class="modal-input" id="memberEditStatus"><option value="active">启用</option><option value="disabled">禁用</option></select></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-default" onclick="closeModal('memberEdit')">取消</button><button class="btn btn-primary" onclick="saveMember()">保存</button></div>
+  </div>
+</div>
+
+
+
+<!-- 部门编辑弹窗（M52：上级部门下拉 + 修改/重命名/添加子部门多场景复用） -->
+<div class="modal-overlay" id="deptEdit-overlay">
+  <div class="modal" id="deptEdit" style="width:400px">
+    <div class="modal-header"><h3 id="deptEditTitle">新增部门</h3><button class="modal-close" onclick="closeModal('deptEdit')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="deptEditId">
+      <div class="form-row" id="deptEditParentRow"><label class="info-label">上级部门</label><select class="modal-input" id="deptEditParentSelect"></select></div>
+      <div class="form-row"><label class="info-label">部门名称 <span style="color:var(--red)">*</span></label><input type="text" class="modal-input" id="deptEditName" placeholder="请输入部门名称"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-default" onclick="closeModal('deptEdit')">取消</button><button class="btn btn-primary" onclick="saveDept()">保存</button></div>
+  </div>
+</div>
+
+
+
+<!-- 字典编辑弹窗 -->
+<div class="modal-overlay" id="dictEdit-overlay">
+  <div class="modal" id="dictEdit" style="width:500px">
+    <div class="modal-header"><h3 id="dictEditTitle">新增字典</h3><button class="modal-close" onclick="closeModal('dictEdit')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="dictEditId">
+      <div class="form-row"><label class="info-label">字典名称 <span style="color:var(--red)">*</span></label><input type="text" class="modal-input" id="dictEditName" placeholder="请输入字典名称"></div>
+      <div class="form-row"><label class="info-label">字典编码 <span style="color:var(--red)">*</span></label><input type="text" class="modal-input" id="dictEditCode" placeholder="请输入字典编码"></div>
+      <div class="form-row"><label class="info-label">键值项</label><textarea class="modal-input" id="dictEditItems" rows="5" placeholder="每行一个键值对，格式：key=value"></textarea></div>
+      <div class="form-row"><label class="info-label">状态</label><select class="modal-input" id="dictEditStatus"><option value="active">启用</option><option value="disabled">禁用</option></select></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-default" onclick="closeModal('dictEdit')">取消</button><button class="btn btn-primary" onclick="saveDict()">保存</button></div>
+  </div>
+</div>
+
+
+
+<!-- 字典删除确认弹窗 -->
+<div class="modal-overlay" id="dictDelete-overlay">
+  <div class="modal" id="dictDelete" style="width:400px">
+    <div class="modal-header"><h3>删除字典</h3><button class="modal-close" onclick="closeModal('dictDelete')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body"><p style="font-size:14px;color:var(--text2)">确定要删除字典「<span id="dictDeleteName" style="font-weight:600"></span>」吗？此操作不可恢复。</p></div>
+    <div class="modal-footer"><button class="btn btn-default" onclick="closeModal('dictDelete')">取消</button><button class="btn btn-danger" onclick="confirmDeleteDict()">删除</button></div>
+  </div>
+</div>
+
+
+
+<!-- 菜单编辑弹窗（M50：上级菜单/类型联动/图标/权限标识/是否显示） -->
+<div class="modal-overlay" id="menuEdit-overlay">
+  <div class="modal" id="menuEdit" style="width:540px">
+    <div class="modal-header"><h3 id="menuEditTitle">新增菜单</h3><button class="modal-close" onclick="closeModal('menuEdit')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="menuEditId">
+      <div class="form-row"><label class="info-label">上级菜单</label><select class="modal-input" id="menuEditParentSelect" onchange="menuParentChange()"></select><div class="form-tip">不选择则为一级菜单；按钮必须挂在菜单下</div></div>
+      <div class="form-row"><label class="info-label">菜单类型</label><select class="modal-input" id="menuEditType" onchange="menuTypeChange()"><option value="目录">目录</option><option value="菜单">菜单</option><option value="按钮">按钮</option></select></div>
+      <div class="form-row"><label class="info-label">菜单名称 <span style="color:var(--red)">*</span></label><input type="text" class="modal-input" id="menuEditName" placeholder="请输入菜单名称"></div>
+      <div class="form-row" id="menuEditIconRow"><label class="info-label">图标</label><input type="text" class="modal-input" id="menuEditIcon" placeholder="Font Awesome 图标名，如 fa-box-open"></div>
+      <div class="form-row" id="menuEditRouteRow"><label class="info-label">路由地址</label><input type="text" class="modal-input" id="menuEditRoute" placeholder="如 /products"><div class="form-tip">目录可留空，菜单必填</div></div>
+      <div class="form-row" id="menuEditPermsRow"><label class="info-label">权限标识</label><input type="text" class="modal-input" id="menuEditPerms" placeholder="如 product:list"><div class="form-tip">按钮必填，格式：模块:动作</div></div>
+      <div class="form-row"><label class="info-label">排序</label><input type="number" class="modal-input" id="menuEditSort" value="1"></div>
+      <div class="form-row"><label class="info-label">是否显示</label><select class="modal-input" id="menuEditVisible"><option value="1">显示</option><option value="0">隐藏</option></select></div>
+      <div class="form-row"><label class="info-label">状态</label><select class="modal-input" id="menuEditStatus"><option value="active">启用</option><option value="disabled">禁用</option></select></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-default" onclick="closeModal('menuEdit')">取消</button><button class="btn btn-primary" onclick="saveMenu()">保存</button></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     ③ CSS 区块（复制到 <style> 内，模板已含则跳过）
+     含: org 布局 + 部门树下拉菜单(M52) + 菜单树形表格(M50) + form-tip
+     ============================================================ -->
+<style>
+.org-layout{display:flex;gap:16px;align-items:flex-start;height:calc(100vh - 180px);min-height:420px}
+.org-tree{width:260px;flex-shrink:0;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-md);display:flex;flex-direction:column;height:100%;overflow:hidden}
+.org-tree-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border-light)}
+.org-tree-title{font-size:14px;font-weight:600;color:var(--text1)}
+.org-tree-actions{display:flex;gap:6px}
+.org-tree-body{flex:1;overflow-y:auto;padding:10px 8px}
+.dept-node{display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;transition:background .12s;position:relative}
+.dept-node:hover{background:#f9fafb}
+.dept-node.active{background:var(--accent-bg);color:var(--accent);font-weight:600}
+.dept-node .dept-icon{color:var(--text3);font-size:12px;flex-shrink:0}
+.dept-node.active .dept-icon{color:var(--accent)}
+.dept-node .dept-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dept-more-wrap{position:relative;flex-shrink:0;margin-left:auto}
+.dept-more-btn{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--radius-sm);color:var(--text3);cursor:pointer;font-size:13px;transition:all .15s;opacity:.6}
+.dept-more-btn:hover{background:var(--border-light);color:var(--text);opacity:1}
+.dept-more-menu{position:absolute;right:0;top:26px;min-width:128px;background:var(--card);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:5px;z-index:50;display:none;animation:menuIn .15s ease-out}
+.dept-more-menu.show{display:block}
+@keyframes menuIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.dept-menu-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;font-size:12.5px;color:var(--text2);cursor:pointer;transition:background .12s}
+.dept-menu-item:hover{background:var(--accent-bg);color:var(--text)}
+.dept-menu-item i{width:14px;text-align:center;font-size:11px;color:var(--text3)}
+.dept-menu-item.dept-menu-danger{color:var(--red)}
+.dept-menu-item.dept-menu-danger:hover{background:#FEF2F2}
+.dept-menu-item.dept-menu-danger i{color:var(--red)}
+.dept-menu-sep{height:1px;background:var(--border-light);margin:4px 6px}
+.org-members{flex:1;min-width:0;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-md);display:flex;flex-direction:column;height:100%;overflow:hidden}
+.org-member-summary{display:flex;align-items:center;gap:8px;padding:10px 20px;font-size:13px;color:var(--text2);border-bottom:1px solid var(--border-light)}
+.org-member-summary i{color:var(--accent)}
+.btn-danger{background:#fee2e2;color:#dc2626;border:1px solid #fecaca}
+.btn-danger:hover{background:#fecaca}
+
+/* ============================================================
+   Tab 页签
+   ============================================================ */
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:20px;gap:0}
+.tab-item{padding:10px 20px;font-size:14px;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-weight:500}
+.tab-item:hover{color:var(--accent)}
+.tab-item.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+
+/* ============================================================
+   信息展示 Info Grid
+   ============================================================ */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.info-section{margin-bottom:24px}
+.info-section h4{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+
+/* ============================================================
+   二级页面 Detail（M46：字段多/查看型 → 二级页面，非弹窗）
+   ============================================================ */
+.detail-header{display:flex;align-items:center;gap:14px;margin-bottom:24px;flex-wrap:wrap}
+.detail-back{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card);color:var(--text2);font-size:13px;cursor:pointer;transition:all .15s;font-family:inherit;flex-shrink:0}
+.detail-back:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+.detail-back i{font-size:12px}
+.detail-title{font-size:19px;font-weight:700;color:var(--text);letter-spacing:-.3px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.detail-title .tag{vertical-align:middle}
+.detail-sub{font-size:12.5px;color:var(--text3);margin-top:3px}
+.detail-actions{margin-left:auto;display:flex;gap:10px;flex-shrink:0}
+.detail-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.detail-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 24px;box-shadow:var(--shadow-sm)}
+.detail-card.full{grid-column:1/-1}
+.detail-card-title{font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border-light);display:flex;align-items:center;gap:8px}
+.detail-card-title i{color:var(--accent);font-size:14px;width:16px;text-align:center}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 32px}
+.detail-item{display:flex;flex-direction:column;gap:4px;min-width:0}
+.detail-item .dl{font-size:12px;color:var(--text3)}
+.detail-item .dv{font-size:13.5px;color:var(--text);font-weight:500;font-variant-numeric:tabular-nums;word-break:break-all}
+.detail-item .dv.amount{color:var(--accent);font-weight:700;font-size:17px}
+.detail-item .dv.muted{color:var(--text2);font-weight:400}
+.detail-desc{font-size:13.5px;color:var(--text2);line-height:1.8;background:var(--bg);border-radius:var(--radius);padding:14px 16px}
+.detail-action-bar{display:flex;gap:12px;justify-content:flex-end;padding-top:20px;border-top:1px solid var(--border-light);margin-top:24px}
+/* 弹窗分组标题补全（M46 顺带修复 info-title 无样式问题） */
+.info-title{font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border-light);display:flex;align-items:center;gap:8px}
+/* 订单时间轴 */
+.detail-timeline{position:relative;padding-left:24px}
+.detail-timeline::before{content:'';position:absolute;left:6px;top:6px;bottom:6px;width:2px;background:var(--border-light)}
+.tl-item{position:relative;padding-bottom:18px}
+.tl-item:last-child{padding-bottom:0}
+.tl-item::before{content:'';position:absolute;left:-24px;top:5px;width:10px;height:10px;border-radius:50%;background:var(--card);border:2.5px solid var(--accent-border);box-sizing:border-box}
+.tl-item.done::before{background:var(--accent);border-color:var(--accent)}
+.tl-item.current::before{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-bg)}
+.tl-item.cancel::before{background:var(--red);border-color:var(--red);box-shadow:0 0 0 4px #fee2e2}
+.tl-item .tl-text{font-size:13.5px;color:var(--text);font-weight:500;display:flex;align-items:center;gap:8px}
+.tl-item .tl-time{font-size:12px;color:var(--text3);margin-top:3px}
+/* 认证材料预览 */
+.material-preview{display:flex;gap:16px;flex-wrap:wrap}
+.material-card{width:200px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--card)}
+.material-card .m-img{height:130px;background:linear-gradient(135deg,#f3f4f6,#e5e7eb);display:flex;align-items:center;justify-content:center;font-size:30px;color:#9ca3af}
+.material-card .m-name{font-size:12px;color:var(--text2);padding:8px 10px;text-align:center;border-top:1px solid var(--border-light)}
+.info-item{display:flex;margin-bottom:10px;font-size:13.5px}
+.info-item .info-label{color:var(--text3);min-width:80px;flex-shrink:0}
+.info-item .info-value{color:var(--text);font-weight:500}
+
+/* ============================================================
+   分类树 Cat Tree
+   ============================================================ */
+.cat-tree{list-style:none}
+.cat-node{display:flex;align-items:center;padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:all .12s;gap:8px;font-size:13.5px}
+.cat-node:hover{background:#f9fafb}
+.cat-node.active{background:var(--accent-bg);color:var(--accent)}
+.cat-node .cat-toggle{width:18px;text-align:center;color:var(--text3);font-size:11px;cursor:pointer;transition:transform .2s;flex-shrink:0}
+.cat-node .cat-toggle.open{transform:rotate(90deg)}
+.cat-node .cat-name{flex:1;font-weight:500}
+.cat-node .cat-meta{font-size:12px;color:var(--text3)}
+.cat-node .cat-actions{display:flex;gap:4px;opacity:0;transition:opacity .15s}
+.cat-node:hover .cat-actions{opacity:1}
+.cat-children{margin-left:16px;overflow:hidden;max-height:0;transition:max-height .3s}
+.cat-children.open{max-height:500px}
+
+/* ============================================================
+   组织架构 Org
+   ============================================================ */
+.org-layout{display:flex;gap:20px;height:calc(100vh - 180px);min-height:500px}
+.org-sidebar{width:260px;min-width:260px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);display:flex;flex-direction:column;overflow:hidden}
+.org-sidebar-header{padding:16px 18px;border-bottom:1px solid var(--border-light);display:flex;align-items:center;justify-content:space-between}
+.org-sidebar-header h4{font-size:14px;font-weight:600}
+.org-sidebar-body{flex:1;overflow-y:auto;padding:8px}
+.org-tree{list-style:none}
+.org-tree-node{display:flex;align-items:center;padding:9px 10px;border-radius:var(--radius-sm);cursor:pointer;transition:all .12s;gap:8px;font-size:13px}
+.org-tree-node:hover{background:#f9fafb}
+.org-tree-node.active{background:var(--accent-bg);color:var(--accent)}
+.org-tree-node .org-toggle{width:18px;text-align:center;color:var(--text3);font-size:10px;cursor:pointer;transition:transform .2s;flex-shrink:0}
+.org-tree-node .org-toggle.open{transform:rotate(90deg)}
+.org-tree-node .org-icon{color:var(--text3);font-size:13px;flex-shrink:0}
+.org-tree-node.active .org-icon{color:var(--accent)}
+.org-tree-node .org-name{flex:1;font-weight:500}
+.org-tree-node .org-count{font-size:11px;color:var(--text3);background:var(--border-light);padding:1px 7px;border-radius:10px}
+.org-tree-children{margin-left:20px;overflow:hidden;max-height:0;transition:max-height .3s}
+.org-tree-children.open{max-height:500px}
+.org-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:16px}
+.org-main .card{flex:1;display:flex;flex-direction:column}
+.org-main .card-body{flex:1;overflow:auto;padding:0}
+
+/* ============================================================
+   权限矩阵 Permission Matrix
+   ============================================================ */
+.permission-matrix{display:flex;flex-direction:column;gap:0}
+.perm-module{border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:16px}
+.perm-module-header{padding:14px 18px;background:#f9fafb;border-bottom:1px solid var(--border-light);font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px}
+.perm-module-body{padding:0}
+.perm-row{display:flex;align-items:center;padding:12px 18px;border-bottom:1px solid var(--border-light);transition:background .12s}
+.perm-row:last-child{border-bottom:none}
+.perm-row:hover{background:#f9fafb}
+.perm-name{width:160px;font-size:13.5px;font-weight:500;flex-shrink:0}
+.perm-checks{display:flex;gap:32px;flex:1}
+.perm-check{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer}
+.perm-check input{width:16px;height:16px;cursor:pointer;accent-color:var(--accent)}
+.perm-group{margin-bottom:12px;border:1px solid var(--border-light);border-radius:var(--radius-sm);overflow:hidden}
+.perm-group-header{padding:10px 14px;background:#f9fafb;border-bottom:1px solid var(--border-light);font-weight:600;font-size:13.5px}
+.perm-group-items{display:flex;flex-wrap:wrap;gap:4px 18px;padding:10px 14px}
+.perm-item{font-size:13px;color:var(--text2);padding:4px 0}
+.perm-item:hover{color:var(--accent)}
+/* 两步向导步骤条 */
+.wizard-steps{display:flex;gap:8px;padding:4px 0}
+.wizard-step{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:12.5px;font-weight:600;color:var(--text3);background:var(--border-light)}
+.wizard-step i{font-size:10px;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:var(--text3);color:#fff}
+.wizard-step.active{color:var(--accent);background:var(--accent-bg)}
+.wizard-step.active i{background:var(--accent)}
+.wizard-step.done{color:#16a34a;background:rgba(22,163,74,.08)}
+.wizard-step.done i{background:#16a34a}
+
+/* ============================================================
+   设置页 Settings
+   ============================================================ */
+.settings-section{margin-bottom:28px}
+.settings-section h3{font-size:15px;font-weight:600;margin-bottom:4px}
+.settings-section .settings-desc{font-size:12.5px;color:var(--text3);margin-bottom:16px}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border-light)}
+.settings-row .settings-label{font-size:13.5px;font-weight:500}
+.settings-row .settings-hint{font-size:12px;color:var(--text3);margin-top:2px}
+
+/* Toggle Switch */
+.toggle{position:relative;width:44px;height:24px;border-radius:12px;background:#d1d5db;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--accent)}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.toggle.on::after{transform:translateX(20px)}
+
+/* ============================================================
+   空状态
+   ============================================================ */
+.empty-state{text-align:center;padding:48px 20px}
+.empty-state i{font-size:48px;color:var(--border);margin-bottom:12px}
+.empty-state p{font-size:14px;color:var(--text3);font-weight:500}
+
+/* ============================================================
+   快捷入口 Quick Actions
+   ============================================================ */
+.quick-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:20px}
+.quick-card{cursor:pointer;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);transition:all .2s}
+.quick-card:hover{border-color:#d1d5db;box-shadow:var(--shadow-md)}
+.quick-card .card-header{border-bottom:none;padding-bottom:12px}
+.quick-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px}
+
+/* ============================================================
+   动效
+   ============================================================ */
+.page{animation:none}
+.page.active{animation:pageFadeIn .25s ease}
+@keyframes pageFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.stagger-enter{opacity:0;transform:translateY(8px)}
+.stagger-enter.show{opacity:1;transform:translateY(0);transition:all .3s ease}
+.stagger-enter:nth-child(1){transition-delay:0ms}
+.stagger-enter:nth-child(2){transition-delay:60ms}
+.stagger-enter:nth-child(3){transition-delay:120ms}
+.stagger-enter:nth-child(4){transition-delay:180ms}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ============================================================
+   响应式
+   ============================================================ */
+@media(max-width:1400px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:1024px){.sidebar{width:var(--sidebar-collapsed-w);min-width:var(--sidebar-collapsed-w)}.sidebar .brand-name,.sidebar .nav-label,.sidebar .badge,.sidebar .nav-group-title{display:none}.sidebar .sidebar-brand{padding:0 16px;justify-content:center}.sidebar .nav-item{padding:9px;justify-content:center}.sidebar .collapse-btn i{transform:rotate(180deg)}}
+@media(max-width:768px){.stats-grid{grid-template-columns:1fr}.content-area{padding:16px}.header{padding:0 16px}.info-grid{grid-template-columns:1fr}.quick-actions{grid-template-columns:1fr}}
+
+/* ============================================================
+   业务组件库（桌面端 Agent 注入内容通用样式，M18 修复：类名与模板 CSS 对齐）
+   生成业务页面时直接使用以下类，禁止自创类名（Lint C1-6 强制检查）
+   ============================================================ */
+/* ---------- 数据表格 ---------- */
+.data-table{width:100%;border-collapse:collapse}
+.data-table thead th{background:#F9FAFB;padding:12px 16px;text-align:left;font-size:12px;font-weight:700;color:var(--text2);border-bottom:1.5px solid var(--border);white-space:nowrap;letter-spacing:.02em}
+.data-table tbody td{padding:13px 16px;border-bottom:1px solid var(--border-light);font-size:13.5px;color:var(--text);vertical-align:middle}
+.data-table tbody tr{transition:background .15s}
+.data-table tbody tr:hover{background:var(--accent-bg)}
+.data-table tbody tr:last-child td{border-bottom:none}
+.data-table .empty-state{padding:36px;text-align:center;color:var(--text2)}
+.data-table .empty-state i{font-size:26px;color:var(--text3);margin-bottom:8px}
+.data-table .empty-state p{font-size:13px}
+
+/* ---------- 通用表单控件（设置页等场景使用） ---------- */
+.filter-input{height:38px;padding:0 13px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--text);background:var(--card);outline:none;min-width:180px;transition:border-color .2s,box-shadow .2s}
+.filter-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.1)}
+.filter-select{height:38px;padding:0 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--text);background:var(--card);outline:none;min-width:140px;cursor:pointer}
+
+/* ---------- 专业筛选区（大厂标准：工具栏+搜索框+多条件下拉+按钮组+右侧操作区） ---------- */
+.table-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 20px;border-bottom:1px solid var(--border-light);flex-wrap:wrap}
+.filter-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;min-width:0}
+.filter-search{position:relative}
+.filter-search > i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none}
+.filter-search input{height:38px;padding:0 13px 0 34px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--text);background:var(--card);outline:none;width:230px;transition:border-color .2s,box-shadow .2s}
+.filter-search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.1)}
+.filter-search input::placeholder{color:var(--text3)}
+.filter-field{position:relative}
+.filter-field > i{position:absolute;right:30px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:11px;pointer-events:none}
+.filter-field select{height:38px;padding:0 30px 0 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--text);background:var(--card);outline:none;min-width:130px;cursor:pointer;appearance:none;-webkit-appearance:none;transition:border-color .2s,box-shadow .2s}
+.filter-field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.1)}
+.filter-btn-group{display:flex;gap:8px}
+.filter-btn-group .btn-search{background:var(--accent);color:#fff;border:none;height:38px;padding:0 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .18s;box-shadow:0 2px 8px rgba(var(--accent-rgb),.25)}
+.filter-btn-group .btn-search:hover{background:var(--accent-hover);transform:translateY(-1px)}
+.filter-btn-group .btn-reset{background:var(--card);color:var(--text2);border:1px solid var(--border);height:38px;padding:0 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .18s}
+.filter-btn-group .btn-reset:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+.filter-actions{display:flex;gap:8px;align-items:center}
+.filter-actions .btn-export{background:var(--card);color:var(--text2);border:1px solid var(--border);height:38px;padding:0 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .18s}
+.filter-actions .btn-export:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+
+/* ---------- 状态标签语义色 ---------- */
+.tag-ok{background:rgba(16,185,129,.1);color:#059669}
+.tag-danger{background:rgba(239,68,68,.1);color:#dc2626}
+.tag-warn{background:rgba(245,158,11,.12);color:#d97706}
+.tag-muted{background:#F3F4F6;color:#6B7280}
+
+/* ---------- 柱状图 ---------- */
+.bar-chart{padding:12px 4px 4px}
+.bar-chart-inner{display:flex;align-items:flex-end;justify-content:space-around;gap:10px;height:170px}
+.bar-col{display:flex;flex-direction:column;align-items:center;gap:8px;flex:1;min-width:0}
+.bar{width:60%;max-width:42px;border-radius:6px 6px 2px 2px;min-height:4px;background:linear-gradient(180deg,var(--accent),var(--accent-hover));transition:height .5s cubic-bezier(.16,1,.3,1)}
+.bar-lbl{font-size:11px;color:var(--text3);white-space:nowrap}
+
+/* ---------- 排行条 ---------- */
+.rank-bar{display:inline-block;width:90px;height:6px;background:var(--border);border-radius:4px;overflow:hidden;vertical-align:middle;margin-right:8px}
+.rank-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-light));border-radius:4px}
+.rank-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:0 24px}
+
+
+.form-row .form-tip{font-size:12px;color:var(--text3);line-height:1.5}
+/* ---------- 菜单树形表格（M50） ---------- */
+.menu-stat-row{display:flex;gap:12px;margin-bottom:16px}
+.menu-stat{flex:1;display:flex;align-items:center;gap:10px;padding:14px 18px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-md)}
+.menu-stat-num{font-size:24px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+.menu-stat-label{font-size:13px;color:var(--text3)}
+.menu-stat-icon{margin-left:auto;color:var(--border);font-size:20px}
+.menu-table td{vertical-align:middle}
+.menu-name-cell{display:flex;align-items:center;gap:6px}
+.menu-caret{width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;color:var(--text3);cursor:pointer;font-size:10px;border-radius:4px;flex-shrink:0;transition:transform .15s}
+.menu-caret:hover{background:var(--border-light);color:var(--text)}
+.menu-caret.collapsed{transform:rotate(-90deg)}
+.menu-type-icon{width:16px;text-align:center;flex-shrink:0;font-size:12px;color:var(--text3)}
+.menu-tree-row.menu-level0>td{background:var(--accent-bg)}
+.menu-tree-row.menu-level0:hover>td{background:var(--accent-bg)}
+.menu-tree-row.menu-level0 .menu-name{font-weight:600;color:var(--text)}
+.menu-tree-row.menu-level0 .menu-type-icon{color:var(--accent)}
+.menu-tree-row.menu-level1 .menu-name-cell{padding-left:22px}
+.menu-tree-row.menu-level2 .menu-name-cell{padding-left:44px}
+.menu-tree-row.menu-level2 .menu-type-icon{font-size:8px}
+.menu-tree-row .menu-perms{font-family:ui-monospace,Consolas,monospace;font-size:11px;color:var(--accent);background:var(--accent-bg);padding:2px 8px;border-radius:6px;display:inline-block}
+.menu-tree-row .menu-route{font-size:12px;color:var(--text3)}
+.menu-tree-row .menu-icon-cell{font-size:13px;color:var(--text3)}
+.menu-table .empty-td{text-align:center;padding:36px;color:var(--text2)}
+
+</style>
+
+<!-- ============================================================
+     ④ JS 函数区块（复制到 <script> 内，DOMReady 之前）
+     ============================================================ -->
+<!-- 【依赖】以下通用工具由模板/宿主提供，组件不重复定义（若宿主缺则需补）:
+     openModal/closeModal/showToast/switchPage/doLogin/pagedRender/val/setVal/tagFrom/avatarHtml
+     其中 pagedRender/val/setVal/tagFrom/avatarHtml/AD_STATUS/MEMBER_STATUS
+     若宿主未提供，则从下方 ④b 依赖区块复制 -->
+<!-- 【变量】函数逻辑为标准实现，禁止改写；业务字段差异通过数据适配 -->
+
+<script>
+var AD_STATUS = { active: ['启用', 'tag-ok'], disabled: ['禁用', 'tag-neutral'] };
+var MEMBER_STATUS = { active: ['启用', 'tag-ok'], disabled: ['禁用', 'tag-danger'] };
+
+function tagFrom(map, status) {
+  var v = map[status] || ['未知', 'tag-neutral'];
+  return '<span class="tag ' + v[1] + '">' + v[0] + '</span>';
+}
+function avatarHtml(name) {
+  return '<div style="width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0">' + (name || '?').charAt(0) + '</div>';
+}
+
+function pagedRender(pagerId, bodyId, list, rowFn, callback) {
+  var tbody = document.getElementById(bodyId);
+  if (!tbody) return;
+  var st = window.__pagerState[pagerId] || { page: 1 };
+  var ps = 5;
+  var tp = Math.max(1, Math.ceil(list.length / ps));
+  var p = Math.min(st.page || 1, tp);
+  var sl = list.slice((p - 1) * ps, p * ps);
+  tbody.innerHTML = sl.map(rowFn).join('');
+  if (typeof renderPager === 'function') {
+    renderPager(pagerId, p, list.length, ps, callback);
+  }
+}
+
+function val(id) {
+  var el = document.getElementById(id);
+  return el ? el.value : '';
+}
+
+function setVal(id, v) {
+  var el = document.getElementById(id);
+  if (el) el.value = v;
+}
+
+/* ===== Org (部门/成员) ===== */
+function deptSiblings(parentId) {
+  var p = parentId === null ? '' : parentId;
+  return __depts.filter(function (d) { return (d.parentId === null ? '' : d.parentId) === p; });
+}
+function deptIsFirst(d) {
+  var sibs = deptSiblings(d.parentId);
+  return sibs.length ? sibs[0].id === d.id : true;
+}
+function deptIcon(level) { return level === 0 ? 'fa-folder-open' : level === 1 ? 'fa-folder' : 'fa-folder-minus'; }
+function deptDescendantIds(id) {
+  var out = {}; var stack = [id];
+  while (stack.length) {
+    var cur = stack.pop();
+    __depts.forEach(function (x) { if (x.parentId === cur && !out[x.id]) { out[x.id] = 1; stack.push(x.id); } });
+  }
+  return out;
+}
+function renderDeptNode(d, level) {
+  var isSel = __selectedDept === d.id;
+  var children = __depts.filter(function (x) { return x.parentId === d.id; });
+  var pad = 6 + level * 18;
+  var isRoot = d.id === 'root';
+  var pinItem = deptIsFirst(d) ? '' : '<div class="dept-menu-item" onclick="event.stopPropagation();closeDeptMenus();deptPin(\'' + d.id + '\')"><i class="fa-solid fa-arrow-up"></i>置顶</div>';
+  var h = '<div class="dept-node' + (isSel ? ' active' : '') + '" onclick="selectDept(\'' + d.id + '\')" style="padding-left:' + pad + 'px">';
+  h += '<i class="fa-solid ' + deptIcon(level) + ' dept-icon"></i><span class="dept-name">' + d.name + '</span>';
+  h += '<div class="dept-more-wrap" onclick="event.stopPropagation()">';
+  h += '<button class="dept-more-btn" onclick="event.stopPropagation();toggleDeptMenu(\'' + d.id + '\')"><i class="fa-solid fa-ellipsis-vertical"></i></button>';
+  h += '<div class="dept-more-menu" id="deptMenu-' + d.id + '">';
+  h += '<div class="dept-menu-item" onclick="event.stopPropagation();closeDeptMenus();openDeptEdit(\'' + d.id + '\')"><i class="fa-solid fa-pen"></i>修改</div>';
+  h += '<div class="dept-menu-item" onclick="event.stopPropagation();closeDeptMenus();openDeptRename(\'' + d.id + '\')"><i class="fa-solid fa-i-cursor"></i>重命名</div>';
+  h += pinItem;
+  if (level < 2) h += '<div class="dept-menu-item" onclick="event.stopPropagation();closeDeptMenus();openDeptAddChild(\'' + d.id + '\')"><i class="fa-solid fa-plus"></i>添加子部门</div>';
+  if (!isRoot) h += '<div class="dept-menu-sep"></div><div class="dept-menu-item dept-menu-danger" onclick="event.stopPropagation();closeDeptMenus();openDeptDelete(\'' + d.id + '\')"><i class="fa-solid fa-trash"></i>删除</div>';
+  h += '</div></div></div>';
+  children.forEach(function (c) { h += renderDeptNode(c, level + 1); });
+  return h;
+}
+function renderOrgTree() {
+  var el = document.getElementById('deptTree');
+  if (!el) return;
+  var h = '';
+  __depts.filter(function (d) { return d.parentId === null; }).forEach(function (r) { h += renderDeptNode(r, 0); });
+  el.innerHTML = h;
+}
+function toggleDeptMenu(id) {
+  closeDeptMenus();
+  var m = document.getElementById('deptMenu-' + id);
+  if (m) m.classList.add('show');
+}
+function closeDeptMenus() {
+  document.querySelectorAll('.dept-more-menu.show').forEach(function (m) { m.classList.remove('show'); });
+}
+// D12: 点击下拉卡片外部任意位置自动关闭菜单（卡片内部点击已 stopPropagation 不触发此处）
+document.addEventListener('click', function (e) {
+  if (e.target.closest && e.target.closest('.dept-more-menu, .dept-more-wrap')) return;
+  closeDeptMenus();
+});
+function deptPin(id) {
+  var d = __depts.find(function (x) { return x.id === id; });
+  if (!d) return;
+  var sibs = deptSiblings(d.parentId);
+  var idx = sibs.findIndex(function (x) { return x.id === id; });
+  if (idx <= 0) { showToast('已置顶', 'success'); renderOrgTree(); return; }
+  __depts.splice(__depts.indexOf(d), 1);
+  var first = __depts.indexOf(sibs[0]);
+  __depts.splice(first < 0 ? 0 : first, 0, d);
+  renderOrgTree();
+  showToast('已置顶', 'success');
+}
+function buildDeptParentOptions(exceptId) {
+  var skip = exceptId ? deptDescendantIds(exceptId) : {};
+  if (exceptId) skip[exceptId] = 1;
+  var opts = '<option value="root">无（顶级部门）</option>';
+  __depts.forEach(function (d) {
+    if (d.id === 'root' || skip[d.id]) return;
+    var level = 0, cur = d, seen = {};
+    while (cur && cur.parentId && !seen[cur.id]) { seen[cur.id] = 1; cur = __depts.find(function (x) { return x.id === cur.parentId; }); level++; }
+    if (level >= 2) return; // 三级上限：二级部门不可再作父级
+    var indent = '';
+    for (var i = 1; i < level; i++) indent += '　';
+    opts += '<option value="' + d.id + '">' + indent + '└ ' + d.name + '</option>';
+  });
+  var sel = document.getElementById('deptEditParentSelect');
+  if (sel) sel.innerHTML = opts;
+}
+// 手机号/电话脱敏（D36）：所有界面展示的手机号/电话必须经此函数，避免 PII 裸奔
+function maskPhone(p){
+  if(!p) return p;
+  var s=String(p).trim();
+  if(s.indexOf('*')!==-1) return s;                       // 已脱敏，原样返回
+  var m=s.match(/^1[3-9]\d{9}$/);                         // 11 位中国大陆手机号
+  if(m) return s.slice(0,3)+'****'+s.slice(7);
+  var t=s.match(/^(\d{3,4})-(\d{7,8})$/);                 // 区号-座机
+  if(t) return t[1]+'-****'+t[2].slice(-4);
+  if(/^\d{7,}$/.test(s)) return s.slice(0,3)+'****'+s.slice(-4); // 其他长号
+  return s;
+}
+
+function renderMembersByDept() {
+  var list = __selectedDept === 'root' ? demoData.members : demoData.members.filter(function (m) { return m.dept === __selectedDept; });
+  var dn = __depts.find(function (d) { return d.id === __selectedDept; });
+  var titleEl = document.getElementById('orgMemberTitle');
+  if (titleEl) titleEl.textContent = (dn ? dn.name : '全部') + '（' + list.length + '人）';
+  pagedRender('orgPager', 'membersTableBody', list, function (m) {
+    var toggleText = m.status === 'active' ? '禁用' : '启用';
+    return '<tr><td style="display:flex;align-items:center;gap:8px">' + avatarHtml(m.name) + ' ' + m.name + '</td><td style="font-size:12px">' + maskPhone(m.phone) + '</td><td>' + m.deptName + '</td><td>' + m.role + '</td><td>' + tagFrom(MEMBER_STATUS, m.status) + '</td><td><button class="btn btn-sm btn-default" onclick="openMemberEdit(\'' + m.id + '\')">编辑</button> <button class="btn btn-sm btn-default" onclick="toggleMemberStatus(\'' + m.id + '\')">' + toggleText + '</button> <button class="btn btn-sm btn-danger" onclick="openMemberDelete(\'' + m.id + '\')">删除</button></td></tr>';
+  }, renderMembersByDept);
+}
+function selectDept(deptId) { __selectedDept = deptId; window.__pagerState.orgPager = { page: 1 }; renderOrgTree(); renderMembersByDept(); }
+function openMemberAdd() {
+  setVal('memberEditId', '');
+  setVal('memberEditName', '');
+  setVal('memberEditPhone', '');
+  setVal('memberEditDept', __selectedDept === 'root' ? 'tech' : __selectedDept);
+  setVal('memberEditRole', '');
+  setVal('memberEditStatus', 'active');
+  document.getElementById('memberEditTitle').textContent = '新增成员';
+  openModal('memberEdit');
+}
+function openMemberEdit(id) {
+  var m = demoData.members.find(function (x) { return x.id === id; });
+  if (!m) return;
+  setVal('memberEditId', m.id);
+  setVal('memberEditName', m.name);
+  setVal('memberEditPhone', m.phone);
+  setVal('memberEditDept', m.dept);
+  setVal('memberEditRole', m.role);
+  setVal('memberEditStatus', m.status);
+  document.getElementById('memberEditTitle').textContent = '编辑成员';
+  openModal('memberEdit');
+}
+function saveMember() {
+  var id = val('memberEditId');
+  var name = val('memberEditName').trim();
+  if (!name) { showToast('请输入姓名', 'error'); return; }
+  var phone = val('memberEditPhone').trim();
+  if (!phone) { showToast('请输入手机号', 'error'); return; }
+  var deptId = val('memberEditDept');
+  var dept = __depts.find(function (d) { return d.id === deptId; });
+  var data = { name: name, phone: phone, dept: deptId, deptName: dept ? dept.name : deptId, role: val('memberEditRole') || '成员', status: val('memberEditStatus') };
+  if (id) { var m = demoData.members.find(function (x) { return x.id === id; }); if (m) Object.assign(m, data); }
+  else { data.id = 'M' + String(demoData.members.length + 1).padStart(3, '0'); demoData.members.push(data); }
+  closeModal('memberEdit');
+  renderMembersByDept();
+  showToast('成员保存成功', 'success');
+}
+function deleteMember(id) {
+  var idx = demoData.members.findIndex(function (x) { return x.id === id; });
+  if (idx >= 0) { demoData.members.splice(idx, 1); renderMembersByDept(); showToast('成员已删除', 'success'); }
+}
+function openDeptAdd() {
+  setVal('deptEditId', '');
+  buildDeptParentOptions('');
+  setVal('deptEditParentSelect', 'root');
+  setVal('deptEditName', '');
+  document.getElementById('deptEditTitle').textContent = '新增部门';
+  document.getElementById('deptEditParentRow').style.display = '';
+  openModal('deptEdit');
+}
+function openDeptAddChild(parentId) {
+  setVal('deptEditId', '');
+  buildDeptParentOptions('');
+  setVal('deptEditParentSelect', parentId);
+  setVal('deptEditName', '');
+  document.getElementById('deptEditTitle').textContent = '添加子部门';
+  document.getElementById('deptEditParentRow').style.display = '';
+  openModal('deptEdit');
+}
+function openDeptEdit(id) {
+  var d = __depts.find(function (x) { return x.id === id; });
+  if (!d) return;
+  setVal('deptEditId', d.id);
+  buildDeptParentOptions(d.id);
+  setVal('deptEditParentSelect', d.parentId || 'root');
+  setVal('deptEditName', d.name);
+  document.getElementById('deptEditTitle').textContent = '修改部门';
+  document.getElementById('deptEditParentRow').style.display = '';
+  openModal('deptEdit');
+}
+function openDeptRename(id) {
+  var d = __depts.find(function (x) { return x.id === id; });
+  if (!d) return;
+  setVal('deptEditId', d.id);
+  setVal('deptEditName', d.name);
+  document.getElementById('deptEditTitle').textContent = '重命名部门';
+  document.getElementById('deptEditParentRow').style.display = 'none';
+  openModal('deptEdit');
+}
+function saveDept() {
+  var id = val('deptEditId');
+  var name = val('deptEditName').trim();
+  if (!name) { showToast('请输入部门名称', 'error'); return; }
+  var parentRow = document.getElementById('deptEditParentRow');
+  var parentVisible = parentRow && parentRow.style.display !== 'none';
+  var parentId = parentVisible ? (val('deptEditParentSelect') || 'root') : null;
+  if (id) {
+    var d = __depts.find(function (x) { return x.id === id; });
+    if (d) {
+      if (parentVisible) d.parentId = (parentId === 'root') ? null : parentId;
+      d.name = name;
+      demoData.members.forEach(function (m) { if (m.dept === id) m.deptName = name; });
+    }
+  } else {
+    var pid = parentVisible ? ((parentId === 'root') ? null : parentId) : null;
+    __depts.push({ id: 'dept' + Date.now(), name: name, parentId: pid });
+  }
+  closeModal('deptEdit');
+  renderOrgTree();
+  renderMembersByDept();
+  showToast('部门保存成功', 'success');
+}
+function deleteDept(id) {
+  if (id === 'root') { showToast('顶级部门不可删除', 'error'); return; }
+  var hasChild = __depts.some(function (x) { return x.parentId === id; });
+  if (hasChild) { showToast('请先删除子部门', 'error'); return; }
+  demoData.members.forEach(function (m) { if (m.dept === id) { m.dept = 'root'; m.deptName = '校园二手交易平台'; } });
+  var idx = __depts.findIndex(function (d) { return d.id === id; });
+  if (idx >= 0) __depts.splice(idx, 1);
+  if (__selectedDept === id) __selectedDept = 'root';
+  renderOrgTree();
+  renderMembersByDept();
+  showToast('部门已删除，成员已移至顶层', 'success');
+}
+
+
+
+/* ===== Roles (两步向导) ===== */
+function filterRoles() {
+  var kw = val('rolesSearch').toLowerCase();
+  var list = demoData.roles.filter(function (r) {
+    if (kw && r.name.toLowerCase().indexOf(kw) < 0) return false;
+    return true;
+  });
+  pagedRender('rolesPager', 'rolesTableBody', list, function (r) {
+    var ops = '';
+    if (r.isSuper) ops = '<span style="color:var(--text3);font-size:12px">系统角色</span>';
+    else ops = '<button class="btn btn-sm btn-default" onclick="openRoleEdit(\'' + r.id + '\')">编辑</button> <button class="btn btn-sm btn-danger" onclick="deleteRole(\'' + r.id + '\')">删除</button>';
+    return '<tr><td style="font-weight:500">' + r.name + (r.isSuper ? ' <i class="fa-solid fa-crown" style="color:var(--amber)"></i>' : '') + '</td><td style="max-width:200px;color:var(--text2)">' + r.desc + '</td><td style="font-size:12px">' + r.scope + '</td><td>' + r.memberCount + '</td><td>' + tagFrom(AD_STATUS, r.status) + '</td><td>' + ops + '</td></tr>';
+  }, filterRoles);
+}
+function resetRoles() { setVal('rolesSearch', ''); window.__pagerState.rolesPager = { page: 1 }; filterRoles(); }
+function openRoleAdd() {
+  __roleWizardEditId = null;
+  __roleWizardStep = 1;
+  setVal('roleWizardId', '');
+  setVal('roleWizardName', '');
+  setVal('roleWizardDesc', '');
+  document.getElementById('roleWizardTitle').textContent = '新增角色';
+  showRoleStep(1);
+  openModal('roleWizard');
+}
+function openRoleEdit(id) {
+  var r = demoData.roles.find(function (x) { return x.id === id; });
+  if (!r || r.isSuper) { showToast('超级管理员角色不可编辑', 'error'); return; }
+  __roleWizardEditId = id;
+  __roleWizardStep = 1;
+  setVal('roleWizardId', r.id);
+  setVal('roleWizardName', r.name);
+  setVal('roleWizardDesc', r.desc);
+  document.getElementById('roleWizardTitle').textContent = '编辑角色';
+  renderPermTree(r.menuIds || []);
+  showRoleStep(1);
+  openModal('roleWizard');
+}
+function showRoleStep(step) {
+  __roleWizardStep = step;
+  var s1 = document.getElementById('roleStep1');
+  var s2 = document.getElementById('roleStep2');
+  var f1 = document.getElementById('roleFooter1');
+  var f2 = document.getElementById('roleFooter2');
+  var i1 = document.getElementById('wizardStep1Indicator');
+  var i2 = document.getElementById('wizardStep2Indicator');
+  if (step === 1) {
+    if (s1) s1.style.display = '';
+    if (s2) s2.style.display = 'none';
+    if (f1) f1.style.display = '';
+    if (f2) f2.style.display = 'none';
+    if (i1) { i1.style.background = 'var(--accent-bg)'; i1.style.color = 'var(--accent)'; }
+    if (i2) { i2.style.background = 'var(--border-light)'; i2.style.color = 'var(--text3)'; }
+  } else {
+    if (s1) s1.style.display = 'none';
+    if (s2) s2.style.display = '';
+    if (f1) f1.style.display = 'none';
+    if (f2) f2.style.display = '';
+    if (i1) { i1.style.background = 'var(--border-light)'; i1.style.color = 'var(--text3)'; }
+    if (i2) { i2.style.background = 'var(--accent-bg)'; i2.style.color = 'var(--accent)'; }
+    renderPermTree(getRoleWizardSelectedIds());
+  }
+}
+function getRoleWizardSelectedIds() {
+  var existing = document.querySelectorAll('.perm-item:checked');
+  if (existing.length) {
+    var ids = [];
+    existing.forEach(function (cb) { ids.push(cb.value); });
+    return ids;
+  }
+  if (__roleWizardEditId) {
+    var r = demoData.roles.find(function (x) { return x.id === __roleWizardEditId; });
+    return r ? (r.menuIds || []) : [];
+  }
+  return [];
+}
+function roleWizardNext() {
+  var name = val('roleWizardName').trim();
+  if (!name) { showToast('请输入角色名称', 'error'); return; }
+  showRoleStep(2);
+}
+function roleWizardPrev() { showRoleStep(1); }
+function roleWizardSave() {
+  var name = val('roleWizardName').trim();
+  var desc = val('roleWizardDesc').trim();
+  if (!name) { showToast('请输入角色名称', 'error'); return; }
+  var menuIds = [];
+  document.querySelectorAll('.perm-item:checked').forEach(function (cb) { menuIds.push(cb.value); });
+  var scope = '';
+  __permGroups.forEach(function (g) {
+    var has = g.menus.some(function (m) { return menuIds.indexOf(m.id) >= 0; });
+    if (has) scope += (scope ? '、' : '') + g.name;
+  });
+  if (!scope) scope = '无权限';
+  if (__roleWizardEditId) {
+    var r = demoData.roles.find(function (x) { return x.id === __roleWizardEditId; });
+    if (r) { r.name = name; r.desc = desc; r.menuIds = menuIds; r.scope = scope; }
+  } else {
+    demoData.roles.push({ id: 'R' + String(demoData.roles.length + 1).padStart(3, '0'), name: name, desc: desc, scope: scope, memberCount: 0, status: 'active', isSuper: false, menuIds: menuIds });
+  }
+  closeModal('roleWizard');
+  filterRoles();
+  showToast('角色保存成功', 'success');
+}
+function deleteRole(id) {
+  var r = demoData.roles.find(function (x) { return x.id === id; });
+  if (!r) return;
+  if (r.isSuper) { showToast('超级管理员角色不可删除', 'error'); return; }
+  var idx = demoData.roles.findIndex(function (x) { return x.id === id; });
+  if (idx >= 0) { demoData.roles.splice(idx, 1); filterRoles(); showToast('角色已删除', 'success'); }
+}
+function renderPermTree(selectedIds) {
+  selectedIds = selectedIds || [];
+  var el = document.getElementById('rolePermTree');
+  if (!el) return;
+  var h = '';
+  __permGroups.forEach(function (g, gi) {
+    var allChecked = g.menus.every(function (m) { return selectedIds.indexOf(m.id) >= 0; });
+    h += '<div style="margin-bottom:10px;padding:8px;border:1px solid var(--border);border-radius:8px">';
+    h += '<div style="display:flex;align-items:center;gap:8px;padding-bottom:6px"><input type="checkbox" id="permGroup_' + gi + '" onclick="togglePermGroup(' + gi + ')"' + (allChecked ? ' checked' : '') + '><span style="font-weight:600;font-size:13px">' + g.name + '</span></div>';
+    h += '<div style="margin-left:24px;display:flex;flex-wrap:wrap;gap:10px">';
+    g.menus.forEach(function (m) {
+      h += '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" class="perm-item" value="' + m.id + '" data-group="' + gi + '" onchange="updatePermGroupHeader(' + gi + ')"' + (selectedIds.indexOf(m.id) >= 0 ? ' checked' : '') + '>' + m.name + '</label>';
+    });
+    h += '</div></div>';
+  });
+  el.innerHTML = h;
+}
+function togglePermGroup(gi) {
+  var checked = document.getElementById('permGroup_' + gi).checked;
+  document.querySelectorAll('.perm-item[data-group="' + gi + '"]').forEach(function (cb) { cb.checked = checked; });
+}
+function updatePermGroupHeader(gi) {
+  var items = document.querySelectorAll('.perm-item[data-group="' + gi + '"]');
+  var all = true;
+  items.forEach(function (cb) { if (!cb.checked) all = false; });
+  var el = document.getElementById('permGroup_' + gi);
+  if (el) el.checked = all;
+}
+
+
+
+/* ===== Menus ===== */
+function menuTypeIcon(m) { return m.type === '目录' ? 'fa-folder-open' : m.type === '菜单' ? 'fa-file-lines' : 'fa-circle-dot'; }
+function menuTypeTag(m) { return '<span class="tag ' + (m.type === '目录' ? 'tag-info' : m.type === '菜单' ? 'tag-ok' : 'tag-neutral') + '">' + m.type + '</span>'; }
+function menuRowHtml(m, level) {
+  var caret = level === 0 ? '<span class="menu-caret" onclick="event.stopPropagation();toggleMenuExpand(\'' + m.id + '\')"><i class="fa-solid fa-caret-right"></i></span>' : '';
+  var icon = m.icon ? m.icon : menuTypeIcon(m);
+  var perms = m.perms ? '<span class="menu-perms">' + m.perms + '</span>' : '<span style="color:var(--text3)">—</span>';
+  var route = m.route ? '<span class="menu-route">' + m.route + '</span>' : '<span style="color:var(--text3)">—</span>';
+  var ops = '';
+  if (m.type !== '按钮') ops += '<button class="btn btn-sm btn-default" onclick="openMenuAdd(\'' + m.id + '\')">新增</button> ';
+  ops += '<button class="btn btn-sm btn-default" onclick="openMenuEdit(\'' + m.id + '\')">编辑</button> <button class="btn btn-sm btn-danger" onclick="deleteMenu(\'' + m.id + '\')">删除</button>';
+  return '<tr class="menu-tree-row menu-level' + level + '" data-id="' + m.id + '" data-parent="' + (m.parentId || '') + '"><td><div class="menu-name-cell">' + caret + '<i class="fa-solid ' + icon + ' menu-type-icon"></i><span class="menu-name">' + m.name + '</span></div></td><td><span class="menu-icon-cell"><i class="fa-solid ' + (m.icon || 'fa-minus') + '"></i></span></td><td>' + route + '</td><td>' + perms + '</td><td>' + menuTypeTag(m) + '</td><td>' + m.sort + '</td><td>' + tagFrom(AD_STATUS, m.status) + '</td><td>' + ops + '</td></tr>';
+}
+function renderMenus() {
+  var kw = val('menusSearch').toLowerCase();
+  var tp = val('menusTypeFilter');
+  var st = val('menusStatusFilter');
+  var list = demoData.menus.filter(function (m) {
+    if (kw && m.name.toLowerCase().indexOf(kw) < 0 && (m.perms || '').toLowerCase().indexOf(kw) < 0 && (m.route || '').toLowerCase().indexOf(kw) < 0) return false;
+    if (tp && m.type !== tp) return false;
+    if (st && m.status !== st) return false;
+    return true;
+  });
+  var stat = { '目录': 0, '菜单': 0, '按钮': 0 };
+  demoData.menus.forEach(function (m) { if (stat[m.type] !== undefined) stat[m.type]++; });
+  var setT = function (id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+  setT('menuStatDir', stat['目录']); setT('menuStatMenu', stat['菜单']); setT('menuStatBtn', stat['按钮']); setT('menuStatTotal', demoData.menus.length);
+  var roots = list.filter(function (m) { return !m.parentId || m.parentId === ''; });
+  var h = '';
+  roots.forEach(function (r) {
+    h += menuRowHtml(r, 0);
+    var kids = list.filter(function (m) { return m.parentId === r.id; });
+    kids.forEach(function (k) {
+      h += menuRowHtml(k, 1);
+      var gkids = list.filter(function (m) { return m.parentId === k.id; });
+      gkids.forEach(function (g) { h += menuRowHtml(g, 2); });
+    });
+  });
+  document.getElementById('menusTableBody').innerHTML = h || '<tr><td colspan="8" class="empty-td">暂无符合条件的菜单</td></tr>';
+  var cnt = document.getElementById('menusCount');
+  if (cnt) cnt.textContent = '共 ' + list.length + ' 项';
+}
+function resetMenus() { setVal('menusSearch', ''); setVal('menusTypeFilter', ''); setVal('menusStatusFilter', ''); renderMenus(); }
+function toggleMenuExpand(id) {
+  var rows = document.querySelectorAll('#menusTableBody tr[data-parent="' + id + '"]');
+  var row = document.querySelector('#menusTableBody tr[data-id="' + id + '"]');
+  var caret = row ? row.querySelector('.menu-caret') : null;
+  var collapsed = caret && caret.classList.contains('collapsed');
+  rows.forEach(function (r) { r.style.display = collapsed ? '' : 'none'; });
+  if (caret) caret.classList.toggle('collapsed');
+}
+function buildMenuParentOptions(exceptId) {
+  var opts = '<option value="">无（一级菜单）</option>';
+  demoData.menus.forEach(function (m) {
+    if (m.type === '按钮') return;
+    if (exceptId && (m.id === exceptId || m.parentId === exceptId)) return;
+    var prefix = m.type === '目录' ? '└ ' : '↳ ';
+    opts += '<option value="' + m.id + '">' + prefix + m.name + '</option>';
+  });
+  var sel = document.getElementById('menuEditParentSelect');
+  if (sel) sel.innerHTML = opts;
+}
+function menuTypeChange() {
+  var t = val('menuEditType');
+  var routeRow = document.getElementById('menuEditRouteRow');
+  var permsRow = document.getElementById('menuEditPermsRow');
+  var iconRow = document.getElementById('menuEditIconRow');
+  if (routeRow) routeRow.style.display = (t === '按钮') ? 'none' : '';
+  if (permsRow) permsRow.style.display = (t === '目录') ? 'none' : '';
+  if (iconRow) iconRow.style.display = (t === '按钮') ? 'none' : '';
+}
+function menuParentChange() {
+  var pid = val('menuEditParentSelect');
+  var parent = demoData.menus.find(function (x) { return x.id === pid; });
+  var t = val('menuEditType');
+  if (parent && parent.type === '目录' && t === '按钮') setVal('menuEditType', '菜单');
+  if (parent && parent.type === '菜单' && t === '目录') setVal('menuEditType', '菜单');
+  menuTypeChange();
+}
+function openMenuAdd(parentId) {
+  setVal('menuEditId', '');
+  buildMenuParentOptions('');
+  var parent = parentId ? demoData.menus.find(function (x) { return x.id === parentId; }) : null;
+  if (parentId && parent) {
+    setVal('menuEditParentSelect', parentId);
+    setVal('menuEditType', parent.type === '目录' ? '菜单' : '按钮');
+    document.getElementById('menuEditTitle').textContent = parent.type === '目录' ? '新增菜单' : '新增按钮';
+  } else {
+    setVal('menuEditParentSelect', '');
+    setVal('menuEditType', '目录');
+    document.getElementById('menuEditTitle').textContent = '新增菜单';
+  }
+  setVal('menuEditName', '');
+  setVal('menuEditIcon', '');
+  setVal('menuEditRoute', '');
+  setVal('menuEditPerms', '');
+  setVal('menuEditSort', '1');
+  setVal('menuEditVisible', '1');
+  setVal('menuEditStatus', 'active');
+  menuTypeChange();
+  openModal('menuEdit');
+}
+function openMenuEdit(id) {
+  var m = demoData.menus.find(function (x) { return x.id === id; });
+  if (!m) return;
+  setVal('menuEditId', m.id);
+  buildMenuParentOptions(m.id);
+  setVal('menuEditParentSelect', m.parentId || '');
+  setVal('menuEditType', m.type);
+  setVal('menuEditName', m.name);
+  setVal('menuEditIcon', m.icon || '');
+  setVal('menuEditRoute', m.route || '');
+  setVal('menuEditPerms', m.perms || '');
+  setVal('menuEditSort', m.sort);
+  setVal('menuEditVisible', m.visible || '1');
+  setVal('menuEditStatus', m.status);
+  document.getElementById('menuEditTitle').textContent = '编辑菜单';
+  menuTypeChange();
+  openModal('menuEdit');
+}
+function saveMenu() {
+  var id = val('menuEditId');
+  var name = val('menuEditName').trim();
+  if (!name) { showToast('请输入菜单名称', 'error'); return; }
+  var type = val('menuEditType');
+  var parentId = val('menuEditParentSelect') || '';
+  var parent = parentId ? demoData.menus.find(function (x) { return x.id === parentId; }) : null;
+  if (type === '按钮' && (!parent || parent.type !== '菜单')) { showToast('按钮必须挂在菜单下', 'error'); return; }
+  var route = val('menuEditRoute');
+  var perms = val('menuEditPerms');
+  if (type === '菜单' && !route.trim()) { showToast('菜单必须填写路由地址', 'error'); return; }
+  if (type === '按钮' && !perms.trim()) { showToast('按钮必须填写权限标识', 'error'); return; }
+  var data = { name: name, parentId: parentId, type: type, route: route, perms: perms, icon: val('menuEditIcon'), sort: parseInt(val('menuEditSort')) || 1, status: val('menuEditStatus'), visible: val('menuEditVisible') };
+  if (id) {
+    var m = demoData.menus.find(function (x) { return x.id === id; });
+    if (m) Object.assign(m, data);
+    demoData.menus.forEach(function (x) { if (x.parentId === id && parentId !== id) { } });
+  } else {
+    data.id = 'M' + String(demoData.menus.length + 1).padStart(3, '0');
+    demoData.menus.push(data);
+  }
+  closeModal('menuEdit');
+  renderMenus();
+  showToast('菜单已保存', 'success');
+}
+function deleteMenu(id) {
+  var hasChild = demoData.menus.some(function (x) { return x.parentId === id; });
+  if (hasChild) { showToast('请先删除子菜单', 'error'); return; }
+  var idx = demoData.menus.findIndex(function (x) { return x.id === id; });
+  if (idx >= 0) { demoData.menus.splice(idx, 1); renderMenus(); showToast('菜单已删除', 'success'); }
+}
+
+
+
+/* ===== Dicts ===== */
+function filterDicts() {
+  var kw = val('dictsSearch').toLowerCase();
+  var list = demoData.dicts.filter(function (d) {
+    if (kw && d.name.toLowerCase().indexOf(kw) < 0 && d.code.toLowerCase().indexOf(kw) < 0) return false;
+    return true;
+  });
+  pagedRender('dictsPager', 'dictsTableBody', list, function (d) {
+    return '<tr><td style="font-weight:500">' + d.name + '</td><td style="font-size:12px">' + d.code + '</td><td>' + d.items + '</td><td>' + tagFrom(AD_STATUS, d.status) + '</td><td><button class="btn btn-sm btn-default" onclick="openDictEdit(\'' + d.id + '\')">编辑</button> <button class="btn btn-sm btn-danger" onclick="openDictDelete(\'' + d.id + '\')">删除</button></td></tr>';
+  }, filterDicts);
+}
+function resetDicts() { setVal('dictsSearch', ''); window.__pagerState.dictsPager = { page: 1 }; filterDicts(); }
+function openDictAdd() {
+  setVal('dictEditId', '');
+  setVal('dictEditName', '');
+  setVal('dictEditCode', '');
+  setVal('dictEditItems', '');
+  setVal('dictEditStatus', 'active');
+  document.getElementById('dictEditTitle').textContent = '新增字典';
+  openModal('dictEdit');
+}
+function openDictEdit(id) {
+  var d = demoData.dicts.find(function (x) { return x.id === id; });
+  if (!d) return;
+  setVal('dictEditId', d.id);
+  setVal('dictEditName', d.name);
+  setVal('dictEditCode', d.code);
+  setVal('dictEditItems', '');
+  setVal('dictEditStatus', d.status);
+  document.getElementById('dictEditTitle').textContent = '编辑字典';
+  openModal('dictEdit');
+}
+function saveDict() {
+  var id = val('dictEditId');
+  var name = val('dictEditName').trim();
+  if (!name) { showToast('请输入字典名称', 'error'); return; }
+  var code = val('dictEditCode').trim();
+  if (!code) { showToast('请输入字典编码', 'error'); return; }
+  var itemsText = val('dictEditItems').trim();
+  var itemCount = itemsText ? itemsText.split('\n').filter(function (l) { return l.trim(); }).length + '项' : '0项';
+  var data = { name: name, code: code, items: itemCount, status: val('dictEditStatus') };
+  if (id) { var d = demoData.dicts.find(function (x) { return x.id === id; }); if (d) Object.assign(d, data); }
+  else { data.id = 'D' + String(demoData.dicts.length + 1).padStart(3, '0'); demoData.dicts.push(data); }
+  closeModal('dictEdit');
+  filterDicts();
+  showToast('字典保存成功', 'success');
+}
+function openDictDelete(id) {
+  var d = demoData.dicts.find(function (x) { return x.id === id; });
+  if (!d) return;
+  __dictDeleteId = id;
+  document.getElementById('dictDeleteName').textContent = d.name;
+  openModal('dictDelete');
+}
+function confirmDeleteDict() {
+  var idx = demoData.dicts.findIndex(function (x) { return x.id === __dictDeleteId; });
+  if (idx >= 0) { demoData.dicts.splice(idx, 1); filterDicts(); }
+  closeModal('dictDelete');
+  showToast('字典已删除', 'success');
+}
+
+
+
+/* ===== Logs ===== */
+function filterLogs() {
+  var kw = val('logsSearch').toLowerCase();
+  var list = demoData.logs.filter(function (l) {
+    if (kw && l.operator.toLowerCase().indexOf(kw) < 0 && l.module.toLowerCase().indexOf(kw) < 0) return false;
+    return true;
+  });
+  pagedRender('logsPager', 'logsTableBody', list, function (l) {
+    return '<tr><td>' + l.operator + '</td><td>' + l.module + '</td><td style="max-width:300px">' + l.content + '</td><td style="font-size:12px">' + l.ip + '</td><td style="font-size:12px;color:var(--text3)">' + l.time + '</td></tr>';
+  }, filterLogs);
+}
+function resetLogs() { setVal('logsSearch', ''); window.__pagerState.logsPager = { page: 1 }; filterLogs(); }
+
+
+
+/* ===== C1-9 补全：部门/成员/角色/字典 CRUD 别名与扩展函数 ===== */
+var __deptDeleteId = null;
+var __memberDeleteId = null;
+var __roleDeleteId = null;
+
+/* 部门 CRUD */
+function saveDeptAdd() { saveDept(); }
+function saveDeptRename() { saveDept(); }
+function openDeptDelete(id) { __deptDeleteId = id; deleteDept(id); }
+function saveDeptDelete() { if (__deptDeleteId) { deleteDept(__deptDeleteId); __deptDeleteId = null; } }
+
+/* 成员 CRUD */
+function saveMemberAdd() { saveMember(); }
+function saveMemberEdit() { saveMember(); }
+function toggleMemberStatus(id) {
+  var m = demoData.members.find(function (x) { return x.id === id; });
+  if (m) { m.status = m.status === 'active' ? 'disabled' : 'active'; renderMembersByDept(); showToast(m.status === 'active' ? '成员已启用' : '成员已禁用', 'success'); }
+}
+function openMemberDelete(id) { __memberDeleteId = id; deleteMember(id); }
+function saveMemberDelete() { if (__memberDeleteId) { deleteMember(__memberDeleteId); __memberDeleteId = null; } }
+
+/* 角色权限 CRUD */
+function openRoleDelete(id) { __roleDeleteId = id; deleteRole(id); }
+function saveRoleDelete() { if (__roleDeleteId) { deleteRole(__roleDeleteId); __roleDeleteId = null; } }
+function togglePermMenu(menuId) {
+  var cb = document.querySelector('.perm-item[value="' + menuId + '"]');
+  if (cb) { cb.checked = !cb.checked; var gi = cb.getAttribute('data-group'); if (gi !== null) updatePermGroupHeader(parseInt(gi, 10)); }
+}
+
+/* 字典 CRUD */
+function saveDictAdd() { saveDict(); }
+function saveDictDelete() { confirmDeleteDict(); }
+
+
+</script>
+
+<!-- ============================================================
+     ⑤ 数据区块（合并进宿主 demoData，这是【变量】核心区）
+     ============================================================ -->
+<!-- 【变量】以下数据为示例，按项目实际内容替换：
+     部门/成员 → 本项目组织架构（部门树支持三级: root→部门→子部门）；
+     角色 → 本项目角色；
+     菜单 → 本项目菜单树（parentId/perms/icon/visible 四字段必须保留）；
+     字典 → 本项目枚举；日志 → 示例保留即可
+     ⚠ 宿主必须有 const demoData = {...}（模板保证），
+       本区块通过 Object.assign 合并进 demoData -->
+
+var __selectedDept = 'root';
+var __roleWizardStep = 1;
+var __roleWizardEditId = null;
+var __dictDeleteId = null;
+var __reportProcessId = null;
+
+var __depts = [
+  { id: 'root', name: '校园二手交易平台', parentId: null },
+  { id: 'tech', name: '技术部', parentId: 'root' },
+  { id: 'ops', name: '运营部', parentId: 'root' },
+  { id: 'cs', name: '客服部', parentId: 'root' },
+  { id: 'fin', name: '财务部', parentId: 'root' },
+  { id: 'tech-front', name: '前端组', parentId: 'tech' },
+  { id: 'tech-back', name: '后端组', parentId: 'tech' },
+  { id: 'ops-mkt', name: '市场组', parentId: 'ops' }
+];
+
+var __permGroups = [
+  { name: '概览', menus: [{ id: 'dashboard', name: '数据看板' }] },
+  { name: '商品管理', menus: [{ id: 'productReview', name: '商品审核' }, { id: 'products', name: '商品列表' }] },
+  { name: '订单管理', menus: [{ id: 'orders', name: '订单列表' }] },
+  { name: '用户管理', menus: [{ id: 'users', name: '用户列表' }, { id: 'verifyReview', name: '认证审核' }] },
+  { name: '类目管理', menus: [{ id: 'categories', name: '分类与佣金' }] },
+  { name: '学校管理', menus: [{ id: 'schools', name: '学校列表' }] },
+  { name: '举报管理', menus: [{ id: 'reports', name: '举报列表' }] },
+  { name: '交易财务', menus: [{ id: 'transactions', name: '交易流水' }, { id: 'splits', name: '分账记录' }, { id: 'withdrawals', name: '提现审核' }] },
+  { name: '营销推广', menus: [{ id: 'banners', name: 'Banner管理' }] },
+  { name: '系统管理', menus: [{ id: 'org', name: '我的组织' }, { id: 'roles', name: '角色权限' }, { id: 'menus', name: '菜单配置' }, { id: 'dicts', name: '字典配置' }, { id: 'logs', name: '操作日志' }] }
+];
+
+Object.assign(demoData, {
+  members: [
+    { id: 'M001', name: '张明远', phone: '138****8001', dept: 'root', deptName: '校园二手交易平台', role: '超级管理员', status: 'active' },
+    { id: 'M002', name: '李思琪', phone: '139****9002', dept: 'tech', deptName: '技术部', role: '技术主管', status: 'active' },
+    { id: 'M003', name: '王浩然', phone: '137****7003', dept: 'tech', deptName: '技术部', role: '前端开发', status: 'active' },
+    { id: 'M004', name: '陈雨萱', phone: '136****6004', dept: 'ops', deptName: '运营部', role: '运营专员', status: 'active' },
+    { id: 'M005', name: '刘子轩', phone: '135****5005', dept: 'ops', deptName: '运营部', role: '运营专员', status: 'disabled' },
+    { id: 'M006', name: '赵欣怡', phone: '134****4006', dept: 'cs', deptName: '客服部', role: '客服专员', status: 'active' },
+    { id: 'M007', name: '孙博文', phone: '133****3007', dept: 'cs', deptName: '客服部', role: '客服专员', status: 'active' },
+    { id: 'M008', name: '周雅琪', phone: '132****2008', dept: 'fin', deptName: '财务部', role: '财务专员', status: 'active' }
+  ],
+  roles: [
+    { id: 'R001', name: '超级管理员', desc: '拥有系统全部管理权限', scope: '全部模块', memberCount: 1, status: 'active', isSuper: true, menuIds: [] },
+    { id: 'R002', name: '运营专员', desc: '负责商品审核、用户管理、订单查看、举报处理', scope: '商品管理、订单管理、用户管理、举报管理', memberCount: 2, status: 'active', isSuper: false, menuIds: ['dashboard','products','productReview','orders','users','verifyReview','reports'] },
+    { id: 'R003', name: '财务专员', desc: '负责交易流水查看、分账记录、提现审核', scope: '交易财务', memberCount: 1, status: 'active', isSuper: false, menuIds: ['dashboard','transactions','splits','withdrawals'] },
+    { id: 'R004', name: '客服专员', desc: '负责举报处理和用户咨询', scope: '举报管理、用户管理', memberCount: 2, status: 'active', isSuper: false, menuIds: ['dashboard','reports','users'] },
+    { id: 'R005', name: '商品审核员', desc: '负责商品审核和上下架管理', scope: '商品管理', memberCount: 0, status: 'active', isSuper: false, menuIds: ['dashboard','products','productReview'] }
+  ],
+  menus: [
+    { id: 'M001', name: '概览', parentId: '', type: '目录', route: '', perms: '', icon: 'fa-gauge-high', sort: 1, status: 'active', visible: '1' },
+    { id: 'M002', name: '数据看板', parentId: 'M001', type: '菜单', route: '/dashboard', perms: 'dashboard:view', icon: 'fa-chart-line', sort: 1, status: 'active', visible: '1' },
+    { id: 'M003', name: '商品管理', parentId: '', type: '目录', route: '', perms: '', icon: 'fa-box-open', sort: 2, status: 'active', visible: '1' },
+    { id: 'M004', name: '商品审核', parentId: 'M003', type: '菜单', route: '/productReview', perms: 'product:review', icon: 'fa-clipboard-check', sort: 1, status: 'active', visible: '1' },
+    { id: 'M005', name: '审核通过', parentId: 'M004', type: '按钮', route: '', perms: 'product:review:approve', icon: '', sort: 1, status: 'active', visible: '1' },
+    { id: 'M006', name: '审核驳回', parentId: 'M004', type: '按钮', route: '', perms: 'product:review:reject', icon: '', sort: 2, status: 'active', visible: '1' },
+    { id: 'M007', name: '商品列表', parentId: 'M003', type: '菜单', route: '/products', perms: 'product:list', icon: 'fa-list', sort: 2, status: 'active', visible: '1' },
+    { id: 'M008', name: '下架商品', parentId: 'M007', type: '按钮', route: '', perms: 'product:offShelf', icon: '', sort: 1, status: 'active', visible: '1' },
+    { id: 'M009', name: '订单管理', parentId: '', type: '目录', route: '', perms: '', icon: 'fa-receipt', sort: 3, status: 'active', visible: '1' },
+    { id: 'M010', name: '订单列表', parentId: 'M009', type: '菜单', route: '/orders', perms: 'order:list', icon: 'fa-file-lines', sort: 1, status: 'active', visible: '1' },
+    { id: 'M011', name: '用户管理', parentId: '', type: '目录', route: '', perms: '', icon: 'fa-users', sort: 4, status: 'active', visible: '1' },
+    { id: 'M012', name: '用户列表', parentId: 'M011', type: '菜单', route: '/users', perms: 'user:list', icon: 'fa-user', sort: 1, status: 'active', visible: '1' },
+    { id: 'M013', name: '认证审核', parentId: 'M011', type: '菜单', route: '/verifyReview', perms: 'user:verify', icon: 'fa-id-card', sort: 2, status: 'active', visible: '1' },
+    { id: 'M014', name: '类目管理', parentId: '', type: '目录', route: '', perms: '', icon: 'fa-tags', sort: 5, status: 'active', visible: '1' },
+    { id: 'M015', name: '分类与佣金', parentId: 'M014', type: '菜单', route: '/categories', perms: 'category:list', icon: 'fa-tag', sort: 1, status: 'active', visible: '1' },
+    { id: 'M016', name: '学校管理', parentId: '', type: '目录', route: '', perms: '', icon: 'fa-school', sort: 6, status: 'active', visible: '1' },
+    { id: 'M017', name: '学校列表', parentId: 'M016', type: '菜单', route: '/schools', perms: 'school:list', icon: 'fa-building-columns', sort: 1, status: 'active', visible: '1' },
+    { id: 'M018', name: '举报管理', parentId: '', type: '目录', route: '', perms: '', icon: 'fa-flag', sort: 7, status: 'active', visible: '1' },
+    { id: 'M019', name: '举报列表', parentId: 'M018', type: '菜单', route: '/reports', perms: 'report:list', icon: 'fa-flag', sort: 1, status: 'active', visible: '1' },
+    { id: 'M020', name: '处理举报', parentId: 'M019', type: '按钮', route: '', perms: 'report:process', icon: '', sort: 1, status: 'active', visible: '1' },
+    { id: 'M021', name: '交易财务', parentId: '', type: '目录', route: '', perms: '', icon: 'fa-coins', sort: 8, status: 'active', visible: '1' },
+    { id: 'M022', name: '交易流水', parentId: 'M021', type: '菜单', route: '/transactions', perms: 'trade:transaction', icon: 'fa-right-left', sort: 1, status: 'active', visible: '1' },
+    { id: 'M023', name: '分账记录', parentId: 'M021', type: '菜单', route: '/splits', perms: 'trade:split', icon: 'fa-code-branch', sort: 2, status: 'active', visible: '1' },
+    { id: 'M024', name: '提现审核', parentId: 'M021', type: '菜单', route: '/withdrawals', perms: 'trade:withdraw', icon: 'fa-wallet', sort: 3, status: 'active', visible: '1' },
+    { id: 'M025', name: '提现打款', parentId: 'M024', type: '按钮', route: '', perms: 'trade:withdraw:pay', icon: '', sort: 1, status: 'active', visible: '1' },
+    { id: 'M026', name: '营销推广', parentId: '', type: '目录', route: '', perms: '', icon: 'fa-bullhorn', sort: 9, status: 'active', visible: '1' },
+    { id: 'M027', name: 'Banner管理', parentId: 'M026', type: '菜单', route: '/banners', perms: 'marketing:banner', icon: 'fa-image', sort: 1, status: 'active', visible: '1' },
+    { id: 'M028', name: '新增Banner', parentId: 'M027', type: '按钮', route: '', perms: 'marketing:banner:add', icon: '', sort: 1, status: 'active', visible: '1' },
+    { id: 'M029', name: '系统管理', parentId: '', type: '目录', route: '', perms: '', icon: 'fa-gear', sort: 10, status: 'active', visible: '1' },
+    { id: 'M030', name: '我的组织', parentId: 'M029', type: '菜单', route: '/org', perms: 'system:org', icon: 'fa-sitemap', sort: 1, status: 'active', visible: '1' },
+    { id: 'M031', name: '角色权限', parentId: 'M029', type: '菜单', route: '/roles', perms: 'system:role', icon: 'fa-user-shield', sort: 2, status: 'active', visible: '1' },
+    { id: 'M032', name: '菜单配置', parentId: 'M029', type: '菜单', route: '/menus', perms: 'system:menu', icon: 'fa-bars', sort: 3, status: 'active', visible: '1' },
+    { id: 'M033', name: '字典配置', parentId: 'M029', type: '菜单', route: '/dicts', perms: 'system:dict', icon: 'fa-book', sort: 4, status: 'active', visible: '1' },
+    { id: 'M034', name: '操作日志', parentId: 'M029', type: '菜单', route: '/logs', perms: 'system:log', icon: 'fa-file-lines', sort: 5, status: 'active', visible: '1' }
+  ],
+  dicts: [
+    { id: 'D001', name: '商品状态', code: 'product_status', items: '5项', status: 'active' },
+    { id: 'D002', name: '订单状态', code: 'order_status', items: '10项', status: 'active' },
+    { id: 'D003', name: '认证状态', code: 'verify_status', items: '4项', status: 'active' },
+    { id: 'D004', name: '提现状态', code: 'withdrawal_status', items: '4项', status: 'active' },
+    { id: 'D005', name: '新旧程度', code: 'condition_level', items: '4项', status: 'active' },
+    { id: 'D006', name: '交付方式', code: 'delivery_type', items: '3项', status: 'active' }
+  ],
+  logs: [
+    { id: 'L001', operator: '张明远', module: '系统管理', content: '登录系统', ip: '192.168.1.100', time: '2026-08-01 09:15' },
+    { id: 'L002', operator: '陈雨萱', module: '商品管理', content: '审核通过商品 P004 小米台灯 Pro', ip: '192.168.1.105', time: '2026-08-01 10:30' },
+    { id: 'L003', operator: '周雅琪', module: '交易财务', content: '审核通过提现单 W20260730003', ip: '192.168.1.108', time: '2026-08-01 11:00' },
+    { id: 'L004', operator: '张明远', module: '类目管理', content: '修改类目「美妆护肤」佣金比例为5%', ip: '192.168.1.100', time: '2026-08-01 11:30' },
+    { id: 'L005', operator: '赵欣怡', module: '举报管理', content: '处理举报 RPT003，封禁用户 U006', ip: '192.168.1.106', time: '2026-08-01 13:00' },
+    { id: 'L006', operator: '陈雨萱', module: '用户管理', content: '驳回用户 U008 认证申请', ip: '192.168.1.105', time: '2026-08-01 14:00' },
+    { id: 'L007', operator: '周雅琪', module: '交易财务', content: '打款提现单 W20260728001', ip: '192.168.1.108', time: '2026-08-01 14:30' },
+    { id: 'L008', operator: '张明远', module: '系统管理', content: '新增角色「商品审核员」', ip: '192.168.1.100', time: '2026-08-01 15:00' },
+    { id: 'L009', operator: '李思琪', module: '系统管理', content: '新增成员「孙博文」至客服部', ip: '192.168.1.102', time: '2026-08-01 15:30' },
+    { id: 'L010', operator: '陈雨萱', module: '商品管理', content: '强制下架商品 P008 Switch OLED', ip: '192.168.1.105', time: '2026-08-01 16:00' }
+  ]
+});

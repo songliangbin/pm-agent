@@ -1,0 +1,2204 @@
+<!--
+  PRD 需求文档模板 - Agent 使用指南
+  本文件是 PRD 文档的完整骨架，Agent 不需要重写 CSS/JS/HTML 基础设施，只需执行以下 4 步操作：
+
+  ① 替换 CSS 变量（4个主色值）
+     --prd-primary / --prd-primary-dark / --prd-primary-light / --prd-primary-bg
+
+  ② 替换文本占位符
+     {{项目名称}} / {{版本号}} / {{阶段}} / {{项目描述}} / {{更新日期}}
+
+  ③ 生成 sidebar 导航项（按项目章节规划）
+     找到 Agent:NAV_START 和 Agent:NAV_END 标记，在中间插入分组标题 + 导航项
+
+  ④ 生成各 section 内容（唯一需要发挥创造力的部分）
+     找到 Agent:SECTION_START 和 Agent:SECTION_END 标记，在中间插入各章节的完整 HTML 内容
+
+  ⑤ 填充数据数组
+     sectionIndex（搜索索引）和 knowledgeBase（知识库）、synonymMap（同义词映射）
+
+  [警告] 以下部分禁止修改：
+  - 所有 style 中的 CSS（960+ 行）
+  - header / chat-widget / chat-window 的 HTML 结构
+  - showSection / 搜索功能 / 智能助手的 JS 逻辑
+  - 主体容器的布局样式（padding-top/height/overflow）
+
+  [允许] 以下部分可以修改：
+  - CSS 变量中的 4 个主色值
+  - header 中的项目名称/版本号文字
+  - sidebar 导航项
+  - main 内的 section 内容
+  - sectionIndex / knowledgeBase / synonymMap 数组
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{项目名称}}需求文档 {{版本号}}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        /* ===== CSS 变量配色系统 ===== */
+        /* ===== Agent: 替换以下 4 个主色值 ===== */
+        :root {
+            --prd-primary: #2563eb;         /* (Agent: 替换) 主色 */
+            --prd-primary-dark: #1d4ed8;    /* (Agent: 替换) 主色深 */
+            --prd-primary-light: #60a5fa;   /* (Agent: 替换) 主色浅 */
+            --prd-primary-bg: #eff6ff;
+            --prd-primary-rgb: 37, 99, 235;       /* (Agent: 替换) 主色 RGB 三元组（用于 rgba 阴影） */      /* (Agent: 替换) 主色背景 */
+            --prd-success: #22c55e;
+            --prd-success-bg: #f0fdf4;
+            --prd-warning: #f59e0b;
+            --prd-warning-bg: #fffbeb;
+            --prd-error: #ef4444;
+            --prd-error-bg: #fef2f2;
+            --prd-info: #3b82f6;
+            --prd-info-bg: #eff6ff;
+            --prd-text-1: #0f172a;
+            --prd-text-2: #475569;
+            --prd-text-3: #94a3b8;
+            --prd-text-4: #cbd5e1;
+            --prd-bg: #f8fafc;
+            --prd-card: #ffffff;
+            --prd-border: #e2e8f0;
+            --prd-border-light: #f1f5f9;
+            --prd-r-sm: 6px;
+            --prd-r-md: 12px;
+            --prd-r-lg: 16px;
+            --prd-r-xl: 20px;
+            --prd-r-2xl: 28px;
+            --prd-shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+            --prd-shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+            --prd-shadow-lg: 0 12px 40px rgba(0,0,0,0.12);
+        }
+
+        /* ===== 智能助手 CSS 变量 ===== */
+        :root {
+            --chat-primary: var(--prd-primary);
+        }
+
+        /* ===== 基础样式 ===== */
+        * { scroll-behavior: smooth; scroll-padding-top: 80px; }
+        body { font-family: 'Noto Sans SC', sans-serif; }
+        /* ===== 左侧导航样式 ===== */
+        .nav-group { margin-bottom: 6px; }
+        .nav-group-title { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 12px 6px; }
+        .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; font-size: 14px; color: #475569; cursor: pointer; transition: all 0.2s ease; text-decoration: none; }
+        .nav-item:hover { background: var(--prd-primary-bg); color: var(--prd-primary); }
+        .nav-item.active { background: var(--prd-primary-bg); color: var(--prd-primary); font-weight: 600; border-right: 3px solid var(--prd-primary); }
+        .nav-icon { width: 18px; height: 18px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.25s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .card-hover { transition: all 0.25s ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 36px rgba(15, 23, 42, 0.1); }
+        /* D37 兜底：卡片基础样式。模板卡片默认用 Tailwind 原子类（bg-white rounded-2xl p-6 border），
+           此处提供纯 class="card" 的兜底，避免注入内容只写 class="card" 而无任何样式（透明/无间距/无阴影）。 */
+        .card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 22px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); }
+
+        /* ===== 表格 ===== */
+        .prd-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .prd-table thead th { background: #f8fafc; font-weight: 700; color: #475569; padding: 12px 14px; text-align: left; border-bottom: 2px solid #e2e8f0; font-size: 13px; white-space: nowrap; }
+        .prd-table tbody td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: top; line-height: 1.65; }
+        .prd-table tbody tr:hover { background: #f8fafc; }
+
+        /* ===== 提示框 ===== */
+        .prd-tip { background: var(--prd-info-bg); border-left: 4px solid var(--prd-info); padding: 14px 18px; border-radius: 0 12px 12px 0; font-size: 14px; color: #1e40af; line-height: 1.8; }
+        .prd-warn { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 14px 18px; border-radius: 0 12px 12px 0; font-size: 14px; color: #92400e; line-height: 1.8; }
+        .prd-error { background: #fef2f2; border-left: 4px solid #ef4444; padding: 14px 18px; border-radius: 0 12px 12px 0; font-size: 14px; color: #991b1b; line-height: 1.8; }
+
+        /* ===== 状态标签 ===== */
+        .status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+
+        /* ===== 章节标题 ===== */
+        .section-title { font-size: 30px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
+        .section-subtitle { color: #64748b; margin-bottom: 28px; }
+
+        /* ===== Mermaid 图表容器 ===== */
+        .mermaid-wrapper {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            padding: 28px 24px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+        .mermaid-wrapper .mermaid-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .mermaid-wrapper .mermaid-title i {
+            font-size: 16px;
+        }
+        .mermaid-wrapper pre.mermaid {
+            display: flex;
+            justify-content: center;
+            background: transparent;
+            padding: 0;
+        }
+        .mermaid-wrapper svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* ===== 非 Mermaid 的装饰性状态标签 ===== */
+        .state-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 700;
+            border: 1px solid #bfdbfe;
+            background: #eff6ff;
+            color: #1d4ed8;
+            white-space: nowrap;
+        }
+
+        aside::-webkit-scrollbar { width: 4px; }
+        aside::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+        code { background: #f1f5f9; padding: 2px 6px; border-radius: 6px; color: #334155; }
+
+        /* ===== 业务流程图（产品经理风格：简洁、直观、非技术） ===== */
+        .biz-flow {
+            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 60%);
+            border-radius: 20px;
+            padding: 28px 32px 20px;
+            overflow-x: auto;
+            border: 1px solid #e2e8f0;
+        }
+        .biz-flow-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #475569;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .biz-flow-title i { font-size: 18px; }
+
+        /* 流程行 */
+        .biz-row {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-bottom: 10px;
+            position: relative;
+            min-width: max-content;
+        }
+        .biz-row.branch {
+            margin-bottom: 6px;
+            padding-left: 60px;
+        }
+        .biz-row.branch-end {
+            margin-bottom: 18px;
+            padding-left: 60px;
+        }
+
+        /* 节点 */
+        .biz-node {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 11px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            position: relative;
+            box-shadow: 0 2px 10px rgba(59,130,246,0.12);
+            letter-spacing: 0.2px;
+            line-height: 1.3;
+        }
+        .biz-node i { font-size: 13px; }
+
+        /* 节点配色 */
+        .biz-node.blue {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #fff;
+        }
+        .biz-node.light-blue {
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            color: #fff;
+        }
+        .biz-node.dark-blue {
+            background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+            color: #fff;
+        }
+        .biz-node.sky {
+            background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%);
+            color: #0c4a6e;
+        }
+        .biz-node.green {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: #fff;
+        }
+        .biz-node.red {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: #fff;
+        }
+        .biz-node.orange {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: #fff;
+        }
+        .biz-node.purple {
+            background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+            color: #fff;
+        }
+        .biz-node.teal{background:linear-gradient(135deg,#0d9488,#14b8a6);color:#fff;box-shadow:0 4px 16px rgba(13,148,136,0.25)}
+        .biz-node.teal-light{background:linear-gradient(135deg,#ccfbf1,#f0fdfa);color:#0f766e;border:1px solid #99f6e4}
+        .biz-tl-dot.teal{background:#0d9488;box-shadow:0 0 0 4px rgba(13,148,136,0.15)}
+        .biz-tl-dot.teal::after{background:#0d9488}
+        .biz-ladder-card.teal{background:linear-gradient(135deg,#f0fdfa,#ccfbf1);border:1px solid #99f6e4;color:#0f766e}
+        .sw-node.teal{background:linear-gradient(135deg,#0d9488,#14b8a6);color:#fff;box-shadow:0 4px 16px rgba(13,148,136,0.25)}
+        .sw-node.teal .sw-step-num{background:#0f766e}
+        .biz-node.gray {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            color: #475569;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+
+        /* 实线箭头 */
+        .biz-arrow {
+            width: 28px;
+            height: 2px;
+            background: #94a3b8;
+            position: relative;
+            flex-shrink: 0;
+            margin: 0 3px;
+        }
+        .biz-arrow::after {
+            content: '';
+            position: absolute;
+            right: -1px;
+            top: -4px;
+            width: 0;
+            height: 0;
+            border-left: 7px solid #94a3b8;
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+        }
+        .biz-arrow.long { width: 48px; }
+
+        /* 虚线箭头（向下分支） */
+        .biz-dash-down {
+            width: 2px;
+            height: 16px;
+            border-left: 2px dashed #cbd5e1;
+            margin-left: 50%;
+            transform: translateX(-1px);
+            position: relative;
+        }
+        .biz-dash-down::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: -4px;
+            width: 0;
+            height: 0;
+            border-top: 6px solid #cbd5e1;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+        }
+
+        /* 虚线箭头（横向） */
+        .biz-dash-h {
+            height: 2px;
+            border-top: 2px dashed #cbd5e1;
+            min-width: 28px;
+            position: relative;
+            flex-shrink: 0;
+            margin: 0 3px;
+        }
+        .biz-dash-h::after {
+            content: '';
+            position: absolute;
+            right: -1px;
+            top: -4px;
+            width: 0;
+            height: 0;
+            border-left: 6px solid #cbd5e1;
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+        }
+
+        /* 分支标签 */
+        .biz-label {
+            font-size: 11px;
+            color: #64748b;
+            background: #f8fafc;
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+            white-space: nowrap;
+            margin: 0 4px;
+        }
+
+        /* 步骤编号 */
+        .biz-step {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.25);
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        /* 流程图底部备注 */
+        .biz-note {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 12px;
+            padding-left: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* 平台全景图专用 — P27警告：仅用于4列等宽全景图，禁止与内部 grid-cols-N 混用！架构图等2列布局只用 biz-flow */
+        .biz-panorama {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .biz-panorama-card {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-radius: 16px;
+            padding: 20px 16px;
+            text-align: center;
+            border: 1px solid #bfdbfe;
+        }
+        .biz-panorama-card .icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            font-size: 20px;
+            color: #fff;
+        }
+        .biz-panorama-card .name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1e3a8a;
+            margin-bottom: 4px;
+        }
+        .biz-panorama-card .desc {
+            font-size: 12px;
+            color: #3b82f6;
+        }
+
+        /* ===== 横向状态时间线 ===== */
+        .biz-timeline {
+            display: grid;
+            gap: 0;
+            padding: 8px 0 16px;
+            overflow-x: auto;
+            min-width: max-content;
+        }
+        .biz-timeline.c4, .biz-tl-branches.c4 { grid-template-columns: repeat(4, 1fr); }
+        .biz-timeline.c5, .biz-tl-branches.c5 { grid-template-columns: repeat(5, 1fr); }
+        .biz-timeline.c6, .biz-tl-branches.c6 { grid-template-columns: repeat(6, 1fr); }
+        .biz-tl-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            min-width: 0;
+        }
+        /* 时间线连接线 */
+        .biz-tl-item::after {
+            content: '';
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            width: 100%;
+            height: 3px;
+            background: #e2e8f0;
+            z-index: 0;
+        }
+        .biz-tl-item:last-child::after {
+            display: none;
+        }
+        .biz-tl-item.completed::after {
+            background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);
+        }
+        .biz-tl-item.current::after {
+            background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+        }
+        .biz-tl-item.danger::after {
+            background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+        }
+        /* 节点圆点 */
+        .biz-tl-dot {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff;
+            position: relative;
+            z-index: 1;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .biz-tl-dot.gray {
+            background: #cbd5e1;
+            color: #64748b;
+        }
+        .biz-tl-dot.blue {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        }
+        .biz-tl-dot.green {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        }
+        .biz-tl-dot.red {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        .biz-tl-dot.orange {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+        }
+        .biz-tl-dot.pulse {
+            animation: tlPulse 2s infinite;
+        }
+        @keyframes tlPulse {
+            0% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
+            70% { box-shadow: 0 0 0 8px rgba(59,130,246,0); }
+            100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+        }
+        /* 状态标签 */
+        .biz-tl-label {
+            margin-top: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #334155;
+            text-align: center;
+            white-space: nowrap;
+            line-height: 1.4;
+        }
+        .biz-tl-label small {
+            display: block;
+            font-size: 11px;
+            font-weight: 400;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+        /* 时间线容器 */
+        .biz-timeline-wrap {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 20px 24px;
+            border: 1px solid #e2e8f0;
+        }
+        .biz-timeline-wrap .title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #475569;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        /* 分支节点 */
+        .biz-tl-branch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 4px;
+            position: relative;
+        }
+        .biz-tl-branch::before {
+            content: '';
+            width: 0;
+            height: 20px;
+            border-left: 2px dashed #cbd5e1;
+            margin-bottom: 4px;
+        }
+        .biz-tl-branch .branch-dot {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #fff;
+            margin-top: 2px;
+        }
+        .biz-tl-branch .branch-label {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 4px;
+            white-space: nowrap;
+            text-align: center;
+        }
+        .biz-tl-branch .branch-label small {
+            display: block;
+            font-size: 10px;
+            color: #94a3b8;
+            margin-top: 1px;
+        }
+        .biz-tl-branches {
+            display: grid;
+            gap: 0;
+            margin-top: 4px;
+        }
+
+        /* ===== 阶梯式状态卡片 ===== */
+        .biz-state-ladder {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: 4px 8px;
+        }
+        .biz-ladder-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+        .biz-ladder-card {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .biz-ladder-card.blue {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #fff;
+        }
+        .biz-ladder-card.sky {
+            background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%);
+            color: #0c4a6e;
+        }
+        .biz-ladder-card.green {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: #fff;
+        }
+        .biz-ladder-card.orange {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: #fff;
+        }
+        .biz-ladder-card.red {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: #fff;
+        }
+        .biz-ladder-card.gray {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            color: #475569;
+            border: 1px solid #cbd5e1;
+        }
+        .biz-ladder-card .num {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+        }
+        /* 阶梯连接线 */
+        .biz-ladder-arrow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 32px;
+            flex-shrink: 0;
+        }
+        .biz-ladder-arrow .line-v {
+            width: 2px;
+            height: 16px;
+            background: #cbd5e1;
+        }
+        .biz-ladder-arrow .line-h {
+            width: 100%;
+            height: 2px;
+            background: #cbd5e1;
+            position: relative;
+        }
+        .biz-ladder-arrow .line-h::after {
+            content: '';
+            position: absolute;
+            right: -1px;
+            top: -4px;
+            width: 0;
+            height: 0;
+            border-left: 6px solid #cbd5e1;
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+        }
+        .biz-ladder-arrow .line-h.back {
+            transform: scaleX(-1);
+        }
+        .biz-ladder-arrow .label {
+            font-size: 10px;
+            color: #94a3b8;
+            white-space: nowrap;
+            margin-top: 2px;
+        }
+        /* 回退箭头 */
+        .biz-ladder-back {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+            padding-left: 40px;
+        }
+        .biz-ladder-back .dash-line {
+            height: 2px;
+            border-top: 2px dashed #cbd5e1;
+            min-width: 60px;
+            position: relative;
+        }
+        .biz-ladder-back .dash-line::after {
+            content: '';
+            position: absolute;
+            left: -1px;
+            top: -4px;
+            width: 0;
+            height: 0;
+            border-right: 6px solid #cbd5e1;
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+        }
+        .biz-ladder-back .back-label {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-left: 6px;
+            white-space: nowrap;
+        }
+        .biz-ladder-wrap {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 20px 24px;
+            border: 1px solid #e2e8f0;
+        }
+        .biz-ladder-wrap .title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #475569;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ===== 泳道图（跨角色时序协作）===== */
+        .biz-swimlane {
+            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 60%);
+            border-radius: 20px;
+            padding: 24px 28px;
+            border: 1px solid #e2e8f0;
+            overflow-x: auto;
+            min-width: max-content;
+        }
+        .biz-swimlane .sw-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #475569;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .biz-swimlane .sw-title i { font-size: 18px; }
+        .sw-lane {
+            display: flex;
+            min-height: 72px;
+            border-bottom: 1px dashed #e2e8f0;
+            position: relative;
+        }
+        .sw-lane:last-child { border-bottom: none; }
+        .sw-lane-label {
+            width: 120px;
+            display: flex;
+            align-items: center;
+            padding: 0 14px;
+            font-weight: 700;
+            font-size: 13px;
+            color: #475569;
+            background: rgba(241,245,249,0.6);
+            border-right: 2px solid #e2e8f0;
+            flex-shrink: 0;
+            gap: 8px;
+        }
+        .sw-lane-label .sw-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .sw-lane-body {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            padding: 10px 16px;
+            gap: 8px;
+            position: relative;
+            flex-wrap: nowrap;
+        }
+        /* 泳道节点 */
+        .sw-node {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 9px 13px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            position: relative;
+            z-index: 2;
+            flex-shrink: 0;
+        }
+        .sw-node.blue {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #fff;
+        }
+        .sw-node.green {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: #fff;
+        }
+        .sw-node.orange {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: #fff;
+        }
+        .sw-node.red {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: #fff;
+        }
+        .sw-node.purple {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: #fff;
+        }
+        .sw-node.gray {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            color: #475569;
+            border: 1px solid #cbd5e1;
+        }
+        .sw-node.sky {
+            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+            color: #0369a1;
+            border: 1px solid #7dd3fc;
+        }
+        /* 箭头连接线 */
+        .sw-arrow {
+            width: 20px;
+            height: 2px;
+            background: #cbd5e1;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .sw-arrow::after {
+            content: '';
+            position: absolute;
+            right: -1px;
+            top: -3px;
+            width: 0;
+            height: 0;
+            border-left: 5px solid #cbd5e1;
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+        }
+        .sw-arrow.green { background: #86efac; }
+        .sw-arrow.green::after { border-left-color: #86efac; }
+        /* 步骤序号标记 */
+        .sw-step-num {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #64748b;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+        }
+        .sw-node.blue .sw-step-num { background: #1e40af; }
+        .sw-node.green .sw-step-num { background: #15803d; }
+        .sw-node.orange .sw-step-num { background: #c2410c; }
+        .sw-node.purple .sw-step-num { background: #6d28d9; }
+        /* 虚线分支 */
+        .sw-dash-arrow {
+            width: 20px;
+            height: 2px;
+            border-top: 2px dashed #cbd5e1;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .sw-dash-arrow::after {
+            content: '';
+            position: absolute;
+            right: -1px;
+            top: -4px;
+            width: 0;
+            height: 0;
+            border-left: 5px solid #cbd5e1;
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+        }
+        /* 跨泳道触发标注 */
+        .sw-trigger {
+            display: flex;
+            align-items: center;
+            font-size: 11px;
+            color: #94a3b8;
+            gap: 4px;
+            padding: 0 4px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        /* 泳道图底部注释 */
+        .sw-note {
+            margin-top: 14px;
+            padding: 12px 16px;
+            background: #f1f5f9;
+            border-radius: 12px;
+            font-size: 12px;
+            color: #64748b;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            line-height: 1.7;
+        }
+        .sw-note i { margin-top: 3px; color: #94a3b8; }
+        /* 驳回/回退分支 */
+        .sw-reject-branch {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: #ef4444;
+            padding: 0 4px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        /* ===== 智能助手对话窗口 ===== */
+        .chat-widget { position: fixed; bottom: 24px; right: 24px; z-index: 100; font-family: 'Noto Sans SC', sans-serif; }
+        .chat-button {
+            width: 60px; height: 60px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--chat-primary), #06b6d4);
+            color: #fff; border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 26px;
+            transition: all 0.3s ease;
+            animation: robotBreath 2.4s ease-in-out infinite;
+            position: relative;
+        }
+        .chat-button::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--chat-primary), #06b6d4);
+            opacity: 0.6;
+            z-index: -1;
+            animation: robotPulse 2.4s ease-out infinite;
+        }
+        .chat-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 28px rgba(var(--prd-primary-rgb),0.5);
+        }
+        .chat-button.chat-opened,
+        .chat-button.chat-opened::after {
+            animation: none;
+        }
+        @keyframes robotBreath {
+            0%, 100% { transform: scale(1); box-shadow: 0 4px 16px rgba(var(--prd-primary-rgb),0.35); }
+            50% { transform: scale(1.1); box-shadow: 0 8px 28px rgba(var(--prd-primary-rgb),0.55), 0 0 0 6px rgba(var(--prd-primary-rgb),0.08); }
+        }
+        @keyframes robotPulse {
+            0% { transform: scale(1); opacity: 0.5; }
+            70% { transform: scale(1.6); opacity: 0; }
+            100% { transform: scale(1.6); opacity: 0; }
+        }
+        .chat-window { position: absolute; bottom: 72px; right: 0; width: 380px; height: 520px; background: #fff; border-radius: 18px; box-shadow: 0 12px 48px rgba(15,23,42,0.18); display: none; flex-direction: column; overflow: hidden; border: 1px solid #e2e8f0; }
+        .chat-window.open { display: flex; animation: chatSlideIn 0.25s ease; }
+        @keyframes chatSlideIn { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .chat-header { background: linear-gradient(135deg, var(--chat-primary), #06b6d4); color: #fff; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; }
+        .chat-header h4 { font-size: 15px; font-weight: 700; margin: 0; }
+        .chat-header .chat-close { background: none; border: none; color: #fff; font-size: 18px; cursor: pointer; opacity: 0.8; }
+        .chat-header .chat-close:hover { opacity: 1; }
+        .chat-body { flex: 1; overflow-y: auto; padding: 16px; background: #f8fafc; }
+        .chat-body::-webkit-scrollbar { width: 4px; }
+        .chat-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+        .chat-message { margin-bottom: 14px; display: flex; gap: 10px; animation: msgFadeIn 0.2s ease; }
+        @keyframes msgFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .chat-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+        .chat-avatar.bot { background: linear-gradient(135deg, var(--chat-primary), #06b6d4); color: #fff; }
+        .chat-avatar.user { background: #e2e8f0; color: #475569; }
+        .chat-bubble { max-width: 260px; padding: 10px 14px; border-radius: 14px; font-size: 13px; line-height: 1.7; word-break: break-word; }
+        .chat-bubble.bot { background: #fff; color: #334155; border: 1px solid #e2e8f0; border-top-left-radius: 4px; }
+        .chat-bubble.user { background: linear-gradient(135deg, var(--chat-primary), #06b6d4); color: #fff; border-top-right-radius: 4px; margin-left: auto; }
+        .chat-bubble strong { font-weight: 700; }
+        .chat-bubble.bot strong { color: var(--chat-primary); }
+        .chat-bubble ul { margin: 6px 0; padding-left: 16px; }
+        .chat-bubble li { margin-bottom: 3px; }
+        .chat-bubble a:hover { text-decoration: underline !important; }
+        .chat-input-area { padding: 12px 16px; background: #fff; border-top: 1px solid #f1f5f9; display: flex; gap: 8px; align-items: center; }
+        .chat-input { flex: 1; border: 1px solid #e2e8f0; border-radius: 10px; padding: 9px 14px; font-size: 13px; outline: none; transition: border-color 0.2s; font-family: 'Noto Sans SC', sans-serif; }
+        .chat-input:focus { border-color: var(--chat-primary); }
+        .chat-send { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--chat-primary), #06b6d4); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s; flex-shrink: 0; }
+        .chat-send:hover { opacity: 0.9; }
+        .chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+        .chat-suggestions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+        .chat-suggestion { padding: 5px 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 999px; font-size: 12px; color: #475569; cursor: pointer; transition: all 0.2s; }
+        .chat-suggestion:hover { background: #eff6ff; border-color: var(--chat-primary); color: var(--chat-primary); }
+        .chat-time { font-size: 11px; color: #94a3b8; text-align: center; margin-bottom: 10px; }
+        .chat-typing { display: flex; gap: 4px; padding: 12px 14px; }
+        .chat-typing span { width: 7px; height: 7px; background: #cbd5e1; border-radius: 50%; animation: typingBounce 1.2s infinite ease-in-out; }
+        .chat-typing span:nth-child(2) { animation-delay: 0.2s; }
+        .chat-typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typingBounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
+
+        /* ===== 顶部搜索栏 ===== */
+        .header-search-wrapper { position: relative; display: flex; align-items: center; }
+        .header-search { width: 220px; padding: 7px 36px 7px 32px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 13px; outline: none; transition: all 0.2s; background: #f8fafc; font-family: 'Noto Sans SC', sans-serif; }
+        .header-search:focus { width: 280px; border-color: var(--prd-primary); background: #fff; box-shadow: 0 0 0 3px rgba(var(--prd-primary-rgb),0.1); }
+        .header-search-icon { position: absolute; left: 10px; color: #94a3b8; font-size: 12px; pointer-events: none; }
+        .header-search-btn { position: absolute; right: 4px; width: 26px; height: 26px; border-radius: 7px; background: #e2e8f0; color: #64748b; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: all 0.2s; }
+        .header-search-btn:hover { background: var(--prd-primary); color: #fff; }
+        .header-search-dropdown { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 8px 32px rgba(15,23,42,0.12); display: none; max-height: 320px; overflow-y: auto; z-index: 200; }
+        .header-search-dropdown.open { display: block; animation: chatSlideIn 0.2s ease; }
+        .search-result-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #334155; transition: background 0.15s; display: flex; align-items: center; gap: 8px; }
+        .search-result-item:hover { background: #f8fafc; }
+        .search-result-item i { color: var(--prd-primary); font-size: 12px; width: 16px; text-align: center; }
+        .search-result-item .search-section { font-size: 11px; color: #94a3b8; margin-left: auto; white-space: nowrap; }
+        .search-no-result { padding: 16px; text-align: center; color: #94a3b8; font-size: 13px; }
+        .search-no-result a { color: var(--prd-primary); cursor: pointer; text-decoration: underline; }
+
+        /* ===== 顶部AI按钮 ===== */
+        .header-ai-btn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; background: linear-gradient(135deg, var(--prd-primary), #06b6d4); color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: 'Noto Sans SC', sans-serif; }
+        .header-ai-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(var(--prd-primary-rgb),0.35); }
+        .header-ai-btn i { font-size: 14px; }
+
+        /* ===== 状态标签 ===== */
+        .header-status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; color: #166534; font-weight: 600; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+    <!-- ===== 顶部 Header ===== -->
+    <header class="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-gray-200 z-50">
+        <div class="flex items-center justify-between px-6 py-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center text-white font-bold text-lg"><i class="fas fa-file-lines"></i></div>
+                <div><h1 class="font-bold text-lg text-gray-900">{{项目名称}}</h1><p class="text-xs text-gray-500">Product Requirements Document {{版本号}}</p></div>
+            </div>
+
+            <!-- 顶部右侧工具栏 -->
+            <div class="flex items-center gap-3">
+                <!-- 搜索框 -->
+                <div class="header-search-wrapper relative">
+                    <i class="fas fa-magnifying-glass header-search-icon"></i>
+                    <input type="text" class="header-search" id="headerSearch" placeholder="搜索文档关键词..." onkeydown="if(event.key==='Enter')doSearch()">
+                    <button class="header-search-btn" onclick="doSearch()"><i class="fas fa-arrow-right"></i></button>
+                    <div class="header-search-dropdown" id="searchDropdown"></div>
+                </div>
+                <!-- 智能助手按钮 -->
+                <button class="header-ai-btn" onclick="toggleChat()" title="打开智能助手">
+                    <i class="fas fa-robot"></i>
+                    <span>智能助手</span>
+                </button>
+                <!-- 更新时间 -->
+                <span class="text-xs text-gray-400">更新于 {{更新日期}}</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===== 主体区域 ===== -->
+    <div class="flex" style="padding-top:80px;height:100vh;overflow:hidden;">
+        <!-- ===== 左侧导航 ===== -->
+        <aside class="fixed left-0 bottom-0 w-72 bg-white border-r border-gray-200 overflow-y-auto z-40" style="top:80px;">
+            <nav class="p-4 space-y-1">
+<!-- Agent:NAV_START — 在此生成分组标题 + 导航项，替换下方示例（P30铁律：图标必用 Lucide 线性图标，组标题禁用 Emoji） -->
+                <!-- === 决策层（Why & What） === -->
+                <div class="nav-group"><div class="nav-group-title" style="color:#0ea5e9;">决策层 · Why &amp; What</div>
+                <a href="#home" class="nav-item active" onclick="showSection('home')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>首页</a>
+                <a href="#overview" class="nav-item" onclick="showSection('overview')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>项目概述</a>
+                <a href="#user-research" class="nav-item" onclick="showSection('user-research')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>用户研究</a>
+                <a href="#business-goals" class="nav-item" onclick="showSection('business-goals')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>业务目标</a>
+                <a href="#feature-plan" class="nav-item" onclick="showSection('feature-plan')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5l2 2L8.5 4.5"/><path d="M3 12.5l2 2 3.5-3"/><path d="M3 19.5l2 2 3.5-3"/><path d="M12 6h9"/><path d="M12 13h9"/><path d="M12 20h9"/></svg>功能规划</a></div>
+
+                <!-- === 方案层（How） === -->
+                <div class="nav-group"><div class="nav-group-title" style="color:#8b5cf6;">方案层 · How</div>
+                <a href="#architecture" class="nav-item" onclick="showSection('architecture')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>系统架构</a>
+                <a href="#entry-comparison" class="nav-item" onclick="showSection('entry-comparison')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg>入口方案</a>
+                <a href="#solution-comparison" class="nav-item" onclick="showSection('solution-comparison')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 16l3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z"/><path d="M2 16l3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>方案对比</a>
+                <a href="#cost-roi" class="nav-item" onclick="showSection('cost-roi')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8"/><path d="M16 14v4"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg>成本ROI</a>
+                <a href="#schedule" class="nav-item" onclick="showSection('schedule')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>项目排期</a>
+                <a href="#risk-management" class="nav-item" onclick="showSection('risk-management')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1 1 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/></svg>风险管理</a></div>
+
+                <!-- === 实现层（Detail） === -->
+                <div class="nav-group"><div class="nav-group-title" style="color:#10b981;">实现层 · Detail</div>
+                <a href="#roles" class="nav-item" onclick="showSection('roles')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1 1 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><circle cx="12" cy="11" r="3"/><path d="M7 20.66V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.66"/></svg>角色权限</a>
+                <!-- Agent: 在此添加业务模块章节 -->
+                <a href="#data-structure" class="nav-item" onclick="showSection('data-structure')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 1.2-.3 2.3-.8 3.2a7 7 0 0 1 0 7.6 7 7 0 0 1-12.4 0 7 7 0 0 1 0-7.6A7 7 0 0 1 5 9a7 7 0 0 1 7-7z"/><path d="M5 9h14"/><path d="M5 15h14"/></svg>数据结构</a>
+                <a href="#api-design" class="nav-item" onclick="showSection('api-design')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/></svg>接口设计</a>
+                <a href="#rules" class="nav-item" onclick="showSection('rules')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>全局规则</a>
+                <a href="#testing" class="nav-item" onclick="showSection('testing')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 14l2 2 4-4"/></svg>测试验收</a></div>
+
+                <!-- === 附录 === -->
+                <div class="nav-group"><div class="nav-group-title" style="color:#f59e0b;">附录</div>
+                <a href="#changelog" class="nav-item" onclick="showSection('changelog')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>变更记录</a>
+                <a href="#pending-questions" class="nav-item" onclick="showSection('pending-questions')"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>待确认</a></div>
+<!-- Agent:NAV_END — 导航示例结束（注入时整段替换 NAV_START~NAV_END） -->
+
+            </nav>
+        </aside>
+
+        <!-- ===== 右侧内容区 ===== -->
+        <main id="mainContent" class="flex-1 ml-72" style="padding:32px;height:calc(100vh - 80px);overflow-y:auto;">
+
+<!-- Agent:SECTION_START — 在此生成各章节内容，替换下方示例 -->
+            <!-- ==================== 决策层 ==================== -->
+
+            <!-- 系统首页 -->
+            <section id="home" class="tab-content active">
+                <div class="max-w-7xl mx-auto">
+                    <div class="bg-gradient-to-br from-slate-950 via-blue-950 to-cyan-900 rounded-3xl p-12 text-white mb-8 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                        <div class="absolute bottom-0 left-0 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+                        <div class="relative z-10 max-w-4xl">
+                            <div class="flex items-center gap-3 mb-4">
+                                <span class="px-3 py-1 bg-white/20 rounded-full text-sm font-medium">{{版本号}}</span>
+                                <span class="px-3 py-1 bg-emerald-400/20 text-emerald-100 rounded-full text-sm">{{阶段}}</span>
+                                <span class="px-3 py-1 bg-white/10 rounded-full text-sm">决策层 → 方案层 → 实现层</span>
+                            </div>
+                            <h2 class="text-4xl font-bold mb-4">{{项目名称}}</h2>
+                            <p class="text-xl text-blue-100 mb-8 leading-relaxed">{{项目描述}}</p>
+                            <div class="flex flex-wrap gap-4">
+                                <button onclick="showSection('overview')" class="px-6 py-3 bg-white text-blue-950 rounded-xl font-semibold hover:bg-blue-50 transition"><i class="fas fa-book-open mr-2"></i>项目概述</button>
+                                <button onclick="showSection('solution-comparison')" class="px-6 py-3 bg-white/20 text-white rounded-xl font-semibold hover:bg-white/30 transition"><i class="fas fa-code-branch mr-2"></i>方案对比</button>
+                                <button onclick="showSection('roles')" class="px-6 py-3 bg-white/20 text-white rounded-xl font-semibold hover:bg-white/30 transition"><i class="fas fa-user-shield mr-2"></i>角色权限</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    
+                    <!-- Agent:DOC_INFO_START — 文档信息表（P23 防护：必须包含） -->
+                    <div class="bg-white rounded-2xl p-6 border border-gray-100 mb-8">
+                        <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-file-alt text-blue-500"></i>文档信息</h3>
+                        <div class="overflow-hidden rounded-xl border border-slate-100 overflow-x-auto">
+                            <table class="prd-table">
+                                <thead><tr><th style="width:200px">项目</th><th>内容</th></tr></thead>
+                                <tbody>
+                                    <tr><td><strong>文档名称</strong></td><td>Agent 填充</td></tr>
+                                    <tr><td><strong>文档版本</strong></td><td>Agent 填充</td></tr>
+                                    <tr><td><strong>文档状态</strong></td><td><span class="status-tag" style="background:#fef9c3;color:#854d0e">Agent 填充</span></td></tr>
+                                    <tr><td><strong>编写人</strong></td><td>Agent 填充</td></tr>
+                                    <tr><td><strong>创建日期</strong></td><td>Agent 填充</td></tr>
+                                    <tr><td><strong>最后更新</strong></td><td>Agent 填充</td></tr>
+                                    <tr><td><strong>评审状态</strong></td><td>Agent 填充</td></tr>
+                                    <tr><td><strong>密级</strong></td><td>Agent 填充</td></tr>
+                                    <tr><td><strong>适用范围</strong></td><td>Agent 填充</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- Agent:DOC_INFO_END -->
+
+                    <!-- 5分钟速读 -->
+                    <div class="bg-white rounded-2xl p-6 border border-gray-100 mb-8">
+                        <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i class="fas fa-clock text-blue-500"></i>5分钟速读版</h3>
+                        <div class="grid grid-cols-5 gap-4 text-sm">
+                            <div class="text-center p-4 bg-blue-50 rounded-xl">
+                                <div class="text-blue-600 font-bold mb-1">为什么做</div>
+                                <div class="text-gray-600">Agent 在此填充一句话业务目标</div>
+                            </div>
+                            <div class="text-center p-4 bg-green-50 rounded-xl">
+                                <div class="text-green-600 font-bold mb-1">给谁做</div>
+                                <div class="text-gray-600">Agent 在此填充目标用户</div>
+                            </div>
+                            <div class="text-center p-4 bg-purple-50 rounded-xl">
+                                <div class="text-purple-600 font-bold mb-1">做什么</div>
+                                <div class="text-gray-600">Agent 在此填充核心功能</div>
+                            </div>
+                            <div class="text-center p-4 bg-orange-50 rounded-xl">
+                                <div class="text-orange-600 font-bold mb-1">什么时候上</div>
+                                <div class="text-gray-600">Agent 在此填充上线时间</div>
+                            </div>
+                            <div class="text-center p-4 bg-pink-50 rounded-xl">
+                                <div class="text-pink-600 font-bold mb-1">需要多少人</div>
+                                <div class="text-gray-600">Agent 在此填充预估人天</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 统计卡片 -->
+                    <div class="grid grid-cols-4 gap-6 mb-8">
+                        <div class="bg-white rounded-2xl p-6 card-hover border border-gray-100">
+                            <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4"><i class="fas fa-layer-group text-blue-600 text-xl"></i></div>
+                            <div class="text-3xl font-bold text-gray-900">-</div>
+                            <div class="text-sm text-gray-500">端数量</div>
+                        </div>
+                        <div class="bg-white rounded-2xl p-6 card-hover border border-gray-100">
+                            <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-4"><i class="fas fa-cubes text-green-600 text-xl"></i></div>
+                            <div class="text-3xl font-bold text-gray-900">-</div>
+                            <div class="text-sm text-gray-500">核心模块</div>
+                        </div>
+                        <div class="bg-white rounded-2xl p-6 card-hover border border-gray-100">
+                            <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4"><i class="fas fa-users text-purple-600 text-xl"></i></div>
+                            <div class="text-3xl font-bold text-gray-900">-</div>
+                            <div class="text-sm text-gray-500">用户角色</div>
+                        </div>
+                        <div class="bg-white rounded-2xl p-6 card-hover border border-gray-100">
+                            <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mb-4"><i class="fas fa-calendar-alt text-orange-600 text-xl"></i></div>
+                            <div class="text-3xl font-bold text-gray-900">-</div>
+                            <div class="text-sm text-gray-500">预估人天</div>
+                        </div>
+                    </div>
+
+                    <!-- 核心规则摘要 + 快速入口 -->
+                    <div class="grid grid-cols-2 gap-6 mb-8">
+                        <div class="bg-white rounded-2xl p-6 border border-gray-100">
+                            <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i class="fas fa-lightbulb text-amber-500"></i>核心规则摘要</h3>
+                            <div class="space-y-3 text-sm text-gray-600">
+                                <p>Agent 在此填充最重要的 3-5 条业务约束...</p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl p-6 border border-gray-100">
+                            <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i class="fas fa-bolt text-blue-500"></i>快速入口</h3>
+                            <div class="space-y-2">
+                                <button onclick="showSection('user-research')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-50 text-sm"><i class="fas fa-users text-gray-400 mr-2"></i>用户研究</button>
+                                <button onclick="showSection('cost-roi')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-50 text-sm"><i class="fas fa-calculator text-gray-400 mr-2"></i>成本与 ROI</button>
+                                <button onclick="showSection('testing')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-50 text-sm"><i class="fas fa-vial-circle-check text-gray-400 mr-2"></i>测试验收</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 项目概述 -->
+            <section id="overview" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">项目概述</h2>
+                    <p class="section-subtitle">Project Overview</p>
+
+                    <!-- 业务目标表 -->
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100 mb-6">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-bullseye text-blue-600"></i>业务目标</h3>
+                        <table class="prd-table">
+                            <thead><tr><th>维度</th><th>现状</th><th>目标</th><th>如何衡量</th></tr></thead>
+                            <tbody>
+                                <tr><td>核心指标</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                <tr><td>商业价值</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                <tr><td>用户满意度</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 价值卡片 -->
+                    <div class="grid grid-cols-3 gap-6 mb-6">
+                        <div class="bg-white rounded-2xl p-6 border border-gray-100 card-hover">
+                            <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-4"><i class="fas fa-user text-green-600 text-xl"></i></div>
+                            <h3 class="font-bold text-lg mb-2">用户价值</h3>
+                            <p class="text-sm text-gray-600 leading-7">Agent 在此填充用户价值描述</p>
+                        </div>
+                        <div class="bg-white rounded-2xl p-6 border border-gray-100 card-hover">
+                            <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mb-4"><i class="fas fa-store text-orange-600 text-xl"></i></div>
+                            <h3 class="font-bold text-lg mb-2">商家价值</h3>
+                            <p class="text-sm text-gray-600 leading-7">Agent 在此填充商家价值描述</p>
+                        </div>
+                        <div class="bg-white rounded-2xl p-6 border border-gray-100 card-hover">
+                            <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4"><i class="fas fa-chart-line text-purple-600 text-xl"></i></div>
+                            <h3 class="font-bold text-lg mb-2">平台价值</h3>
+                            <p class="text-sm text-gray-600 leading-7">Agent 在此填充平台价值描述</p>
+                        </div>
+                    </div>
+
+                    <!-- 术语定义 -->
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100 mb-6">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-book text-blue-600"></i>术语定义</h3>
+                        <table class="prd-table">
+                            <thead><tr><th>术语</th><th>定义</th><th>系统落点</th></tr></thead>
+                            <tbody>
+                                <!-- Agent: 在此添加术语行 -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 业务边界 -->
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-compass text-blue-600"></i>业务边界</h3>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="prd-tip"><strong>当前范围：</strong>Agent 在此填充项目范围内的功能说明。</div>
+                            <div class="prd-warn"><strong>需单独确认：</strong>Agent 在此填充需要进一步确认的边界事项。</div>
+                            <div class="prd-error"><strong>不在此版本：</strong>Agent 在此填充明确排除的功能。</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 用户研究 -->
+            <section id="user-research" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">用户研究</h2>
+                    <p class="section-subtitle">User Research & Personas</p>
+
+                    <!-- 用户画像卡片 -->
+                    <div class="grid grid-cols-3 gap-6 mb-8">
+                        <div class="bg-white rounded-2xl p-6 border border-gray-100 card-hover">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white font-bold">A</div>
+                                <div>
+                                    <div class="font-bold">Agent 填充姓名</div>
+                                    <div class="text-xs text-gray-500">Agent 填充身份标签</div>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-3">Agent 填充一句话描述（核心需求和痛点）</p>
+                            <div class="text-xs text-gray-500"><strong>场景：</strong>Agent 填充使用场景</div>
+                            <div class="text-xs text-gray-500 mt-1"><strong>痛点：</strong>Agent 填充痛点</div>
+                        </div>
+                        <!-- Agent: 复制上方卡片结构添加更多画像 -->
+                    </div>
+
+                    <!-- 用户痛点清单 -->
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100 mb-6">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-exclamation-triangle text-amber-500"></i>用户痛点清单</h3>
+                        <table class="prd-table">
+                            <thead><tr><th>痛点</th><th>用户原话</th><th>影响人群</th><th>频次/严重度</th></tr></thead>
+                            <tbody>
+                                <tr><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 用户故事表 -->
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100 mb-6">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-book-open text-blue-600"></i>用户故事</h3>
+                        <table class="prd-table">
+                            <thead><tr><th>作为（角色）</th><th>我想（功能）</th><th>以便（价值）</th><th>优先级</th></tr></thead>
+                            <tbody>
+                                <tr><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>P0</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 业务目标与数据支撑 -->
+            <section id="business-goals" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">业务目标与数据支撑</h2>
+                    <p class="section-subtitle">Business Goals & Data Support</p>
+
+                    <!-- 数据支撑 -->
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100 mb-6">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-chart-bar text-blue-600"></i>数据支撑</h3>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="p-4 bg-blue-50 rounded-xl text-center">
+                                <div class="text-2xl font-bold text-blue-600">Agent 填充</div>
+                                <div class="text-sm text-gray-600">Agent 填充数据结论</div>
+                            </div>
+                            <!-- Agent: 添加更多数据卡片 -->
+                        </div>
+                    </div>
+
+                    <!-- 成功标准 -->
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100 mb-6">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-trophy text-amber-500"></i>成功标准</h3>
+                        <table class="prd-table">
+                            <thead><tr><th>指标类型</th><th>指标名称</th><th>当前值</th><th>目标值</th><th>观测周期</th></tr></thead>
+                            <tbody>
+                                <tr><td>北极星指标</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                <tr><td>过程指标</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 不做的后果 -->
+                    <div class="prd-warn mb-6">
+                        <strong>不做的后果：</strong><br>
+                        <strong>短期影响（1-3个月）：</strong>Agent 填充<br>
+                        <strong>长期影响（3-6个月）：</strong>Agent 填充<br>
+                        <strong>竞争风险：</strong>Agent 填充
+                    </div>
+                </div>
+            </section>
+
+            <!-- 功能规划 -->
+            <section id="feature-plan" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">功能规划</h2>
+                    <p class="section-subtitle">Feature Planning & Prioritization</p>
+
+                    <!-- 功能清单 -->
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100 mb-6">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-list text-blue-600"></i>功能清单</h3>
+                        <table class="prd-table">
+                            <thead><tr><th>功能</th><th>描述</th><th>优先级</th><th>理由</th><th>工作量</th></tr></thead>
+                            <tbody>
+                                <tr><td>Agent 填充</td><td>Agent 填充</td><td><span class="status-tag" style="background:#fef2f2;color:#991b1b">P0 必须做</span></td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                <tr><td>Agent 填充</td><td>Agent 填充</td><td><span class="status-tag" style="background:#fffbeb;color:#92400e">P1 推荐做</span></td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                <tr><td>Agent 填充</td><td>Agent 填充</td><td><span class="status-tag" style="background:#f0fdf4;color:#166534">P2 可以不做</span></td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 不做功能清单 -->
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-ban text-red-500"></i>不做功能清单</h3>
+                        <table class="prd-table">
+                            <thead><tr><th>功能</th><th>为什么不做</th><th>什么时候考虑做</th></tr></thead>
+                            <tbody>
+                                <tr><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            
+            <!-- Agent:MODULE_LIST_START — 功能模块清单（P25 防护：列表格式，分端标注） -->
+            <section id="module-list" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">功能模块清单</h2>
+                    <p class="section-subtitle">Feature Module List</p>
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100 mb-6">
+                        <div class="space-y-3">
+                            <!-- Agent 填充：每个模块一行，格式如下 -->
+                            <!-- <div class="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
+                                <i class="fas fa-user-check text-blue-600 mt-1"></i>
+                                <div>
+                                    <p class="font-bold text-gray-900">模块名称【用户端】</p>
+                                    <p class="text-sm text-gray-600">功能简述</p>
+                                </div>
+                            </div> -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <!-- Agent:MODULE_LIST_END -->
+
+            <!-- ==================== 方案层 ==================== -->
+
+            <!-- 系统架构 -->
+            <section id="architecture" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">系统架构</h2>
+                    <p class="section-subtitle">System Architecture & Data Flow</p>
+
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100 mb-6">
+                        <h3 class="text-xl font-bold mb-4">端侧说明</h3>
+                        <table class="prd-table">
+                            <thead><tr><th>端</th><th>定位</th><th>关键能力</th></tr></thead>
+                            <tbody>
+                                <tr><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mermaid-wrapper" id="mermaid-placeholder" style="display:none">
+                        <div class="mermaid-title"><i class="fas fa-diagram-project"></i>图表标题</div>
+                        <pre class="mermaid"></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 功能入口方案对比 -->
+            <section id="entry-comparison" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">功能入口方案对比</h2>
+                    <p class="section-subtitle">Entry Point Comparison & Decision</p>
+
+                    <!-- 入口方案对比 -->
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100 mb-6">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-door-open text-blue-600"></i>功能入口方案对比</h3>
+                        <table class="prd-table">
+                            <thead><tr><th>方案</th><th>优点</th><th>缺点</th><th>预期影响</th></tr></thead>
+                            <tbody>
+                                <tr><td>方案 A</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                <tr><td>方案 B</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 推荐方案 -->
+                    <div class="bg-blue-50 rounded-2xl p-8 border-2 border-blue-200 mb-6">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-check-circle text-blue-600"></i>推荐方案</h3>
+                        <div class="font-bold text-lg mb-2 text-blue-700">Agent 填充推荐方案名称</div>
+                        <div class="text-sm text-gray-600">决策理由：Agent 填充（目标用户是谁，需要最高的可见性；竞品做法参考）</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 解决方案对比 -->
+            <section id="solution-comparison" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">解决方案对比</h2>
+                    <p class="section-subtitle">Solution Comparison & Decision</p>
+
+                    <!-- 解决方案对比 -->
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100 mb-6">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-code-branch text-purple-600"></i>解决方案对比</h3>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="border border-gray-200 rounded-xl p-4">
+                                <div class="font-bold mb-2">方案 A</div>
+                                <div class="text-sm text-gray-600 mb-2">Agent 填充描述</div>
+                                <div class="text-xs text-green-600">优点：Agent 填充</div>
+                                <div class="text-xs text-red-600">缺点：Agent 填充</div>
+                                <div class="text-xs text-gray-500 mt-2">成本：Agent 填充人天 / 周期：Agent 填充周</div>
+                            </div>
+                            <div class="border border-gray-200 rounded-xl p-4">
+                                <div class="font-bold mb-2">方案 B</div>
+                                <div class="text-sm text-gray-600 mb-2">Agent 填充描述</div>
+                                <div class="text-xs text-green-600">优点：Agent 填充</div>
+                                <div class="text-xs text-red-600">缺点：Agent 填充</div>
+                                <div class="text-xs text-gray-500 mt-2">成本：Agent 填充人天 / 周期：Agent 填充周</div>
+                            </div>
+                            <div class="border-2 border-blue-500 rounded-xl p-4 bg-blue-50">
+                                <div class="font-bold mb-2 text-blue-700">推荐方案 ✓</div>
+                                <div class="text-sm text-gray-600 mb-2">Agent 填充推荐方案名称</div>
+                                <div class="text-xs text-blue-700">决策理由：Agent 填充（用数据说话）</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 成本与 ROI -->
+            <section id="cost-roi" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">成本与 ROI</h2>
+                    <p class="section-subtitle">Cost Estimation & ROI Analysis</p>
+
+                    <!-- 开发成本 -->
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100 mb-6">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-users text-blue-600"></i>开发成本</h3>
+                        <table class="prd-table">
+                            <thead><tr><th>角色</th><th>工作内容</th><th>人天</th><th>备注</th></tr></thead>
+                            <tbody>
+                                <tr><td>产品经理</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                <tr><td>交互设计师</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                <tr><td>前端工程师</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                <tr><td>后端工程师</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                <tr><td>测试工程师</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- ROI 分析 -->
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-chart-pie text-green-600"></i>ROI 分析</h3>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="p-4 bg-red-50 rounded-xl">
+                                <div class="text-sm text-gray-600 mb-1">投入成本</div>
+                                <div class="text-lg font-bold text-red-700">Agent 填充</div>
+                                <div class="text-xs text-gray-500">人力 + 机会成本</div>
+                            </div>
+                            <div class="p-4 bg-green-50 rounded-xl">
+                                <div class="text-sm text-gray-600 mb-1">预期收益</div>
+                                <div class="text-lg font-bold text-green-700">Agent 填充</div>
+                                <div class="text-xs text-gray-500">核心指标提升 + 商业价值</div>
+                            </div>
+                            <div class="p-4 bg-blue-50 rounded-xl">
+                                <div class="text-sm text-gray-600 mb-1">ROI / 回本周期</div>
+                                <div class="text-lg font-bold text-blue-700">Agent 填充</div>
+                                <div class="text-xs text-gray-500">Agent 填充结论</div>
+                            </div>
+                        </div>
+                        <div class="prd-tip mt-4"><strong>结论：</strong>Agent 填充 ROI 是否值得优先做。若 ROI &lt; 5 倍需重新评估优先级。</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 项目排期 -->
+            <section id="schedule" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">项目排期</h2>
+                    <p class="section-subtitle">Project Schedule & Milestones</p>
+
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100 mb-6">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-calendar-alt text-blue-600"></i>项目排期</h3>
+                        <table class="prd-table">
+                            <thead><tr><th>阶段</th><th>时间</th><th>交付物</th><th>责任人</th><th>状态</th></tr></thead>
+                            <tbody>
+                                <tr><td>需求评审</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                <tr><td>交互设计</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                <tr><td>视觉设计</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                <tr><td>前端开发</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                <tr><td>后端开发</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                <tr><td>联调测试</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                <tr><td>灰度上线</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                <tr><td>全量上线</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 风险管理 -->
+            <section id="risk-management" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">风险管理</h2>
+                    <p class="section-subtitle">Risk Management & Mitigation</p>
+
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-shield-alt text-red-500"></i>风险清单</h3>
+                        <table class="prd-table">
+                            <thead><tr><th>风险</th><th>发生概率</th><th>影响程度</th><th>应对方案</th><th>责任人</th></tr></thead>
+                            <tbody>
+                                <tr><td>Agent 填充</td><td>高/中/低</td><td>高/中/低</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 实现层 ==================== -->
+
+            <!-- 角色与权限 -->
+            <section id="roles" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">角色与权限</h2>
+                    <p class="section-subtitle">Roles & Permissions</p>
+
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100 mb-6">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-user-shield text-blue-600"></i>角色定义</h3>
+                        <table class="prd-table">
+                            <thead><tr><th>角色</th><th>使用端</th><th>核心权限</th><th>数据范围</th></tr></thead>
+                            <tbody>
+                                <tr><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-lock text-purple-600"></i>权限矩阵</h3>
+                        <table class="prd-table">
+                            <thead><tr><th>功能</th><th>角色1</th><th>角色2</th><th>角色3</th></tr></thead>
+                            <tbody>
+                                <tr><td>Agent 填充</td><td>√</td><td>-</td><td>√</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 数据结构 -->
+            <section id="data-structure" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">数据结构</h2>
+                    <p class="section-subtitle">Data Structure & Index Design</p>
+
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-database text-blue-600"></i>表结构定义</h3>
+                        <table class="prd-table">
+                            <thead><tr><th>字段名</th><th>类型</th><th>长度</th><th>必填</th><th>默认值</th><th>索引</th><th>说明</th></tr></thead>
+                            <tbody>
+                                <tr><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 接口设计 -->
+            <section id="api-design" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">接口设计</h2>
+                    <p class="section-subtitle">API Design & Error Codes</p>
+
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100 mb-6">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-plug text-blue-600"></i>接口文档</h3>
+                        <div class="mb-4">
+                            <div class="text-sm font-bold">接口路径：</div>
+                            <div class="text-sm text-gray-600">Agent 填充</div>
+                        </div>
+                        <div class="mb-4">
+                            <div class="text-sm font-bold">请求参数：</div>
+                            <table class="prd-table">
+                                <thead><tr><th>参数名</th><th>类型</th><th>必填</th><th>说明</th><th>示例</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mb-4">
+                            <div class="text-sm font-bold">返回结果（成功）：</div>
+                            <pre class="bg-gray-100 p-3 rounded-lg text-sm">Agent 填充 JSON 示例</pre>
+                        </div>
+                        <div class="mb-4">
+                            <div class="text-sm font-bold">返回结果（失败）：</div>
+                            <pre class="bg-gray-100 p-3 rounded-lg text-sm">Agent 填充 JSON 示例</pre>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-exclamation-circle text-red-500"></i>错误码说明</h3>
+                        <table class="prd-table">
+                            <thead><tr><th>错误码</th><th>说明</th><th>常见原因</th><th>解决方案</th></tr></thead>
+                            <tbody>
+                                <tr><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 全局规则 -->
+            <section id="rules" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">全局规则</h2>
+                    <p class="section-subtitle">Global Business Rules</p>
+
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-sliders-h text-blue-600"></i>业务规则</h3>
+                        <!-- Agent: 按主题分组，每组一个卡片或表格 -->
+                        <div class="space-y-4">
+                            <div class="prd-tip"><strong>交易规则：</strong>Agent 填充价格/促销/优惠规则</div>
+                            <div class="prd-tip"><strong>退款规则：</strong>Agent 填充退款条件/审核流程/时效</div>
+                            <div class="prd-tip"><strong>通知规则：</strong>Agent 填充消息推送场景和触发条件</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 测试验收 -->
+            <section id="testing" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">测试验收</h2>
+                    <p class="section-subtitle">Testing & Acceptance Criteria</p>
+
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100 mb-6">
+                        <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-vial-circle-check text-blue-600"></i>功能验收</h3>
+                        <table class="prd-table">
+                            <thead><tr><th>功能模块</th><th>验收标准</th><th>验收方法</th><th>优先级</th></tr></thead>
+                            <tbody>
+                                <tr><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>P0</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-6 border border-gray-100 mb-6">
+                        <h3 class="font-bold text-lg mb-4">核心链路测试用例</h3>
+                        <table class="prd-table"><thead><tr><th style="width:120px;">用例编号</th><th style="width:160px;">测试场景</th><th>前置条件</th><th>操作步骤</th><th>预期结果</th></tr></thead>
+                        <tbody>
+                            <tr><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                        </tbody></table>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-6 border border-gray-100 mb-6">
+                        <h3 class="font-bold text-lg mb-4">异常场景测试用例</h3>
+                        <table class="prd-table"><thead><tr><th style="width:120px;">用例编号</th><th style="width:160px;">测试场景</th><th>前置条件</th><th>操作步骤</th><th>预期结果</th></tr></thead>
+                        <tbody>
+                            <tr><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td></tr>
+                        </tbody></table>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-6 border border-gray-100">
+                        <h3 class="font-bold text-lg mb-4">性能与兼容性要求</h3>
+                        <table class="prd-table"><thead><tr><th>指标</th><th>要求</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td>首屏加载时间</td><td>≤ 2秒（4G网络）</td><td>Agent 填充</td></tr>
+                            <tr><td>接口响应时间</td><td>95% ≤ 500ms</td><td>Agent 填充</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 附录 ==================== -->
+
+            
+            <!-- Agent:PROTO_PAGE_LIST_START — 原型页面清单（P26 防护：分端列出所有页面） -->
+            <section id="proto-pages" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">原型页面清单</h2>
+                    <p class="section-subtitle">Prototype Page List</p>
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="bg-white rounded-2xl p-6 border border-gray-100">
+                            <h4 class="font-bold text-gray-900 mb-3 flex items-center gap-2"><i class="fas fa-mobile-alt text-green-600"></i>用户端</h4>
+                            <div class="space-y-2 text-sm text-gray-600">
+                                <!-- Agent 填充：每行一个页面名称 -->
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl p-6 border border-gray-100">
+                            <h4 class="font-bold text-gray-900 mb-3 flex items-center gap-2"><i class="fas fa-desktop text-purple-600"></i>管理端</h4>
+                            <div class="space-y-2 text-sm text-gray-600">
+                                <!-- Agent 填充：每行一个页面名称 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <!-- Agent:PROTO_PAGE_LIST_END -->
+
+            <!-- 变更记录 -->
+            <section id="changelog" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">变更记录</h2>
+                    <p class="section-subtitle">Change Log</p>
+
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100">
+                        <table class="prd-table">
+                            <thead><tr><th>版本</th><th>日期</th><th>变更内容</th><th>变更人</th><th>评审状态</th></tr></thead>
+                            <tbody>
+                                <tr><td>v1.0</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td><span class="status-tag" style="background:#fef9c3;color:#854d0e">🟡 草稿</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 待确认问题 -->
+            <section id="pending-questions" class="tab-content">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="section-title">待确认问题</h2>
+                    <p class="section-subtitle">Pending Questions</p>
+
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100">
+                        <table class="prd-table">
+                            <thead><tr><th>问题</th><th>描述</th><th>影响</th><th>负责人</th><th>截止日期</th><th>状态</th></tr></thead>
+                            <tbody>
+                                <tr><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td>Agent 填充</td><td><span class="status-tag" style="background:#fef9c3;color:#854d0e">⏳ 待确认</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+<!-- Agent:SECTION_END -->
+        </main>
+    </div>
+
+    <!-- ===== 智能助手组件 ===== -->
+    <div class="chat-widget">
+        <div class="chat-window" id="chatWindow">
+            <div class="chat-header">
+                <h4><i class="fas fa-robot" style="margin-right:6px;"></i>PRD 智能助手</h4>
+                <button class="chat-close" onclick="toggleChat()"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div class="chat-body" id="chatBody">
+                <div class="chat-time" id="chatTime"></div>
+                <div class="chat-message">
+                    <div class="chat-avatar bot"><i class="fas fa-robot"></i></div>
+                    <div class="chat-bubble bot">
+                        你好！我是 PRD 智能助手，可以帮你快速查询需求文档中的业务规则。试着问我：
+                        <div class="chat-suggestions" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;">
+                            <!-- Agent: 在此添加快捷问题建议 -->
+                            <button class="chat-suggestion" onclick="sendQuick('项目有几个端？')">项目有几个端？</button>
+                            <button class="chat-suggestion" onclick="sendQuick('核心业务流程是什么？')">核心业务流程</button>
+                            <button class="chat-suggestion" onclick="sendQuick('用户怎么注册？')">用户注册流程</button>
+                            <button class="chat-suggestion" onclick="sendQuick('退款规则是什么？')">退款规则</button>
+                            <button class="chat-suggestion" onclick="sendQuick('有哪些权限角色？')">权限角色</button>
+                            <button class="chat-suggestion" onclick="sendQuick('数据怎么存储？')">数据存储</button>
+                            <button class="chat-suggestion" onclick="sendQuick('怎么保证安全？')">安全机制</button>
+                            <button class="chat-suggestion" onclick="sendQuick('测试验收标准？')">测试验收</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" class="chat-input" id="chatInput" placeholder="输入问题，按回车发送..." onkeydown="if(event.key==='Enter')sendMessage()">
+                <button class="chat-send" id="chatSend" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+        <button class="chat-button" id="chatBtn" onclick="toggleChat()"><i class="fas fa-robot"></i></button>
+    </div>
+
+    <!-- ===== 核心脚本 ===== -->
+    <script>
+        // ===== Mermaid 初始化 =====
+        try { mermaid.initialize({ startOnLoad: false, theme: 'default' }); } catch(e) { console.warn('Mermaid CDN 加载失败，图表功能不可用:', e); }
+
+        // ===== Tab 切换逻辑 =====
+        async function showSection(id) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            const section = document.getElementById(id);
+            if (section) section.classList.add('active');
+
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const activeItem = document.querySelector('.nav-item[onclick*="' + id + '"]');
+            if (activeItem) activeItem.classList.add('active');
+
+            // 滚动内容区到顶部，确保内容不被 header 遮挡
+            var mainEl = document.querySelector('main');
+            if (mainEl) mainEl.scrollTop = 0;
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+
+            // 渲染当前可见区域的 Mermaid 图表
+            if (section) {
+                const mermaidBlocks = section.querySelectorAll('pre.mermaid');
+                for (const block of mermaidBlocks) {
+                    if (block.querySelector('svg')) continue;
+                    try {
+                        const mId = 'mermaid-' + Math.random().toString(36).substr(2, 9);
+                        const { svg } = await mermaid.render(mId, block.textContent);
+                        block.innerHTML = svg;
+                    } catch (e) {
+                        console.error('Mermaid render error:', e);
+                        block.innerHTML = '<p style="color:red;padding:12px;">图表渲染失败: ' + e.message + '</p>';
+                    }
+                }
+            }
+        }
+
+        // ===== ScrollSpy 子标题追踪（基础能力预留） =====
+        (function initScrollSpy() {
+            function observeActiveSection() {
+                if (window._subObserver) window._subObserver.disconnect();
+                const activeSection = document.querySelector('.tab-content.active');
+                if (!activeSection) return;
+                const subHeadings = activeSection.querySelectorAll('h3, h4');
+                if (subHeadings.length === 0) return;
+                subHeadings.forEach((el, idx) => {
+                    if (!el.dataset.scrollId) el.dataset.scrollId = 'sub-' + idx;
+                });
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const visibleId = entry.target.dataset.scrollId;
+                            subHeadings.forEach(h => h.dataset.visible = 'false');
+                            entry.target.dataset.visible = 'true';
+                            window.dispatchEvent(new CustomEvent('subheading-visible', {
+                                detail: { id: visibleId, text: entry.target.textContent.trim() }
+                            }));
+                        }
+                    });
+                }, { root: null, rootMargin: '-80px 0px -60% 0px', threshold: 0 });
+                subHeadings.forEach(h => observer.observe(h));
+                window._subObserver = observer;
+            }
+            observeActiveSection();
+            const originalShowSection = window.showSection;
+            window.showSection = async function(id) {
+                await originalShowSection(id);
+                requestAnimationFrame(() => observeActiveSection());
+            };
+        })();
+    </script>
+
+    <!-- ===== 搜索功能 ===== -->
+    <script>
+    (function() {
+        // Agent:SEARCH_DATA_START — 只替换 sectionIndex 数组内容，禁止删除函数
+        // Agent: 在此填充 sectionIndex 数组，每个对象包含 id, title, keywords
+        const sectionIndex = [
+            // 示例格式：
+            // { id: "home", title: "系统首页", keywords: ["首页", "欢迎", "概览"] },
+            // { id: "overview", title: "项目概述", keywords: ["概述", "背景", "目标", "范围", "边界"] },
+            // { id: "architecture", title: "系统架构", keywords: ["架构", "技术栈", "数据流"] },
+            // { id: "testing", title: "测试验收", keywords: ["测试", "验收", "用例", "标准"] },
+        ];
+        // Agent:SEARCH_DATA_END — 搜索数据结束，下方 doSearch 函数不可删除
+
+        const searchInput = document.getElementById("headerSearch");
+        const searchDropdown = document.getElementById("searchDropdown");
+
+        function doSearch() {
+            const q = searchInput.value.trim().toLowerCase().replace(/[？?，,。\.\s]/g, "");
+            if (!q) { searchDropdown.classList.remove("open"); return; }
+
+            const matches = [];
+            for (const sec of sectionIndex) {
+                let score = 0;
+                if (sec.title.toLowerCase().includes(q)) score += 30;
+                for (const kw of sec.keywords) {
+                    const cleanKw = kw.toLowerCase().replace(/[？?，,。\.\s]/g, "");
+                    if (cleanKw.includes(q)) score += 15;
+                    if (q.includes(cleanKw)) score += 10;
+                }
+                if (score > 0) matches.push({ ...sec, score });
+            }
+            matches.sort((a, b) => b.score - a.score);
+
+            let html = "";
+            if (matches.length > 0) {
+                for (const m of matches.slice(0, 6)) {
+                    html += `<div class="search-result-item" onclick="jumpToSection('${m.id}')">
+                        <i class="fas fa-file-lines"></i>
+                        <span>${m.title}</span>
+                        <span class="search-section">${m.keywords.slice(0, 3).join(" / ")}</span>
+                    </div>`;
+                }
+            } else {
+                html = `<div class="search-no-result">
+                    未找到「${searchInput.value.trim()}」相关内容<br>
+                    <a onclick="askBot('${searchInput.value.trim().replace(/'/g, "\\'")}')">试试问智能助手 <i class="fas fa-robot"></i></a>
+                </div>`;
+            }
+            searchDropdown.innerHTML = html;
+            searchDropdown.classList.add("open");
+        }
+
+        window.doSearch = doSearch;
+        window.jumpToSection = function(id) {
+            searchDropdown.classList.remove("open");
+            searchInput.value = "";
+            showSection(id);
+        };
+        window.askBot = function(text) {
+            searchDropdown.classList.remove("open");
+            searchInput.value = "";
+            if (!document.getElementById("chatWindow").classList.contains("open")) toggleChat();
+            setTimeout(() => sendQuick(text), 200);
+        };
+
+        // 点击外部关闭下拉
+        document.addEventListener("click", function(e) {
+            if (!e.target.closest(".header-search-wrapper")) {
+                searchDropdown.classList.remove("open");
+            }
+        });
+
+        // 暴露 sectionIndex 给外部自验证（runAssertions 使用，勿删除）
+        window.__sectionIndex = sectionIndex;
+    })();
+    </script>
+
+    <!-- ===== 智能助手 ===== -->
+    <script>
+    (function() {
+        // Agent:DATA_START — 只替换 knowledgeBase 和 synonymMap，禁止删除函数
+        // Agent: 在此填充 knowledgeBase 数组，每个对象包含 keywords, answer, goto
+        const knowledgeBase = [
+            // 示例格式：
+            // {
+            //     keywords: ["几个端", "多少端", "四端"],
+            //     answer: "本项目共 <strong>4个端</strong>：<br>① <strong>用户端</strong>（...）<br>② <strong>商家端</strong>（...）",
+            //     goto: "overview"
+            // },
+        ];
+
+        // 同义词扩展（defaultAnswer 和 findAnswer 已移至 DATA_END 之后）
+        const synonymMap = {
+            // Agent: 在此按项目需要扩展同义词映射
+            "退款": ["退钱", "退货", "退费", "退单", "取消订单"],
+            "订单": ["单据", "购买记录", "交易", "下单"],
+            "商品": ["产品", "货物", "物品", "宝贝"],
+            "盈利": ["赚钱", "收入", "收益", "利润", "商业模式"],
+            "门店": ["店铺", "商户", "商家"],
+            "支付": ["付款", "结算", "扣款", "转账"],
+            "权限": ["角色", "管理", "授权", "访问控制"],
+            "用户": ["客户", "消费者", "会员"],
+            "数据": ["信息", "统计", "报表", "指标"],
+            "安全": ["加密", "防护", "隐私", "认证"],
+            "测试": ["验收", "检查", "质量", "用例"],
+            "注册": [" signup", "sign up", "创建账号", "开户"],
+        };
+        // Agent:DATA_END — 助手数据结束，下方函数不可删除
+
+        // 暴露数据给外部自验证（runAssertions 使用，勿删除）
+        window.__prdData = { sectionIndex: window.__sectionIndex || [], knowledgeBase: knowledgeBase, synonymMap: synonymMap };
+
+        const defaultAnswer = { answer: "抱歉，这个问题我还不太清楚。你可以尝试：<br>① 用更具体的关键词提问<br>② 查看左侧目录定位对应章节<br>③ <strong>直接咨询产品经理</strong>", goto: null };
+
+        function findAnswer(question) {
+            const rawQ = question.toLowerCase().replace(/[？?，,。.\s]/g, "");
+            if (!rawQ) return defaultAnswer;
+            const q = expandSynonyms(rawQ);
+            let bestMatch = null;
+            let maxScore = 0;
+            for (const item of knowledgeBase) {
+                let score = 0;
+                for (const kw of item.keywords) {
+                    const cleanKw = kw.toLowerCase().replace(/[？?，,。.\s]/g, "");
+                    if (rawQ.includes(cleanKw) || q.includes(cleanKw)) {
+                        score += cleanKw.length * 2;
+                        if (rawQ === cleanKw) score += 50;
+                    }
+                }
+                if (score > maxScore) {
+                    maxScore = score;
+                    bestMatch = item;
+                }
+            }
+            if (maxScore >= 2) {
+                return { answer: bestMatch.answer, goto: bestMatch.goto || null };
+            }
+            return defaultAnswer;
+        }
+
+        function expandSynonyms(text) {
+            let expanded = text;
+            const lowered = text.toLowerCase();
+            for (const [core, syns] of Object.entries(synonymMap)) {
+                for (const syn of syns) {
+                    if (lowered.includes(syn.toLowerCase())) {
+                        expanded += " " + core;
+                        break;
+                    }
+                }
+            }
+            return expanded;
+        }
+
+        const chatWindow = document.getElementById("chatWindow");
+        const chatBody = document.getElementById("chatBody");
+        const chatInput = document.getElementById("chatInput");
+        const chatTime = document.getElementById("chatTime");
+        let isOpen = false;
+
+        function toggleChat() {
+            isOpen = !isOpen;
+            chatWindow.classList.toggle("open", isOpen);
+            const btn = document.getElementById("chatBtn");
+            btn.innerHTML = isOpen ? '<i class="fas fa-xmark"></i>' : '<i class="fas fa-robot"></i>';
+            btn.classList.toggle("chat-opened", isOpen);
+            if (isOpen) setTimeout(() => chatInput.focus(), 100);
+        }
+
+        function formatTime() {
+            const now = new Date();
+            return now.getHours().toString().padStart(2, "0") + ":" + now.getMinutes().toString().padStart(2, "0");
+        }
+
+        function addMessage(text, isUser, goto) {
+            const time = formatTime();
+            if (chatTime.textContent !== time) chatTime.textContent = time;
+            let bubbleHtml = text;
+            if (!isUser && goto) {
+                bubbleHtml += `<div style="margin-top:10px;padding-top:8px;border-top:1px solid #f1f5f9;"><a href="javascript:void(0)" onclick="showSection('${goto}');toggleChat();" style="color:var(--chat-primary);font-size:12px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:4px;"><i class="fas fa-external-link-alt" style="font-size:10px;"></i>查看相关章节</a></div>`;
+            }
+            const msgDiv = document.createElement("div");
+            msgDiv.className = "chat-message";
+            msgDiv.innerHTML = `
+                <div class="chat-avatar ${isUser ? "user" : "bot"}"><i class="fas ${isUser ? "fa-user" : "fa-robot"}"></i></div>
+                <div class="chat-bubble ${isUser ? "user" : "bot"}">${bubbleHtml}</div>
+            `;
+            chatBody.appendChild(msgDiv);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+
+        function showTyping() {
+            const id = "typing-" + Date.now();
+            const msgDiv = document.createElement("div");
+            msgDiv.className = "chat-message";
+            msgDiv.id = id;
+            msgDiv.innerHTML = `
+                <div class="chat-avatar bot"><i class="fas fa-robot"></i></div>
+                <div class="chat-bubble bot chat-typing"><span></span><span></span><span></span></div>
+            `;
+            chatBody.appendChild(msgDiv);
+            chatBody.scrollTop = chatBody.scrollHeight;
+            return id;
+        }
+
+        function removeTyping(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+            addMessage(text, true);
+            chatInput.value = "";
+            const result = findAnswer(text);
+            const typingId = showTyping();
+            setTimeout(() => {
+                removeTyping(typingId);
+                addMessage(result.answer, false, result.goto);
+            }, 400 + Math.random() * 400);
+        }
+
+        window.sendQuick = function(text) {
+            if (!isOpen) toggleChat();
+            addMessage(text, true);
+            const result = findAnswer(text);
+            const typingId = showTyping();
+            setTimeout(() => {
+                removeTyping(typingId);
+                addMessage(result.answer, false, result.goto);
+            }, 400 + Math.random() * 400);
+        };
+
+        window.toggleChat = toggleChat;
+        window.sendMessage = sendMessage;
+        window.findAnswer = findAnswer;
+    })();
+
+    // ============================================================
+    // 自动化断言（Agent 自检时在 Console 执行 runAssertions()）
+    // ============================================================
+    function runAssertions(){
+        var A=[],pass=0,fail=0;
+        function assert(name,ok,detail){
+            if(ok){pass++;A.push({s:'✓',n:name})}
+            else{fail++;A.push({s:'✗',n:name,d:detail||''})}
+        }
+        // DOM 结构
+        assert('header',!!document.querySelector('header'));
+        assert('sidebar',!!document.querySelector('aside'));
+        assert('main',!!document.getElementById('mainContent'));
+        assert('search-input',!!document.getElementById('headerSearch'));
+        assert('chat-widget',!!document.querySelector('.chat-widget'));
+        assert('chat-window',!!document.getElementById('chatWindow'));
+        // 关键函数
+        assert('doSearch',typeof doSearch==='function');
+        assert('findAnswer',typeof findAnswer==='function');
+        assert('showSection',typeof showSection==='function');
+        assert('toggleChat',typeof toggleChat==='function');
+        assert('sendMessage',typeof sendMessage==='function');
+        // 数据数组（从 window.__prdData 读取，兼容 IIFE 作用域）
+        var _pd = window.__prdData || {};
+        assert('sectionIndex',Array.isArray(_pd.sectionIndex),'条数='+(_pd.sectionIndex||[]).length);
+        assert('knowledgeBase',Array.isArray(_pd.knowledgeBase),'条数='+(_pd.knowledgeBase||[]).length);
+        assert('synonymMap',typeof _pd.synonymMap!=='undefined','类型='+typeof _pd.synonymMap);
+        // 函数不在 DATA 注入区域内被覆盖
+        var dsSrc=doSearch.toString();
+        assert('doSearch未被覆盖',dsSrc.indexOf('sectionIndex')!==-1,'doSearch 应引用 sectionIndex');
+        var faSrc=findAnswer.toString();
+        assert('findAnswer未被覆盖',faSrc.indexOf('knowledgeBase')!==-1,'findAnswer 应引用 knowledgeBase');
+        // 布局检查
+        var mc=document.getElementById('mainContent');
+        var mcStyle=mc?getComputedStyle(mc):null;
+        assert('main独立滚动',mcStyle&&mcStyle.overflowY==='auto','overflow-y='+((mcStyle&&mcStyle.overflowY)||'未找到'));
+        // 输出
+        console.log('%c=== 自动化断言 '+(fail===0?'全部通过':'存在失败')+' ===','font-size:14px;font-weight:bold;color:'+(fail===0?'#10b981':'#ef4444'));
+        console.log('通过:'+pass+' / 失败:'+fail+' / 总计:'+(pass+fail));
+        A.forEach(function(r){console.log(r.s+' '+r.n+(r.d?' → '+r.d:''))});
+        return{pass:pass,fail:fail,items:A};
+    }
+    // 自动执行断言并输出结构化结果（browser-check.py 解析用，勿删除）
+    (function(){
+        try{
+            var _r=runAssertions();
+            console.log('AUTO_ASSERTIONS:'+JSON.stringify({pass:_r.pass,fail:_r.fail}));
+            window.__pmAssertions=_r;
+        }catch(e){console.error('AUTO_ASSERTIONS_EXCEPTION:'+e.message);}
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!-- 教育管理后台扩展组件 -->
+<style>
+/* ========== 课程卡片 ========== */
+.ext-course-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.ext-course-card{background:var(--card);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm);transition:all .2s;cursor:pointer}
+.ext-course-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.ext-course-cover{height:130px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:32px;color:rgba(255,255,255,.6);position:relative}
+.ext-course-cover .tag{position:absolute;top:10px;right:10px;padding:2px 10px;border-radius:4px;font-size:11px;font-weight:500;color:#fff}
+.ext-course-cover .tag.active{background:rgba(34,197,94,.85)}
+.ext-course-cover .tag.draft{background:rgba(156,163,175,.85)}
+.ext-course-cover .tag.ended{background:rgba(107,114,128,.7)}
+.ext-course-body{padding:12px 14px}
+.ext-course-title{font-size:14px;font-weight:600;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ext-course-teacher{font-size:12px;color:var(--text3);margin-bottom:8px}
+.ext-course-teacher::before{content:'\1f468\200d\1f3eb '}
+.ext-course-progress{height:4px;background:var(--border-light);border-radius:4px;overflow:hidden;margin-bottom:6px}
+.ext-course-progress .fill{height:100%;border-radius:4px;background:var(--accent);transition:width .6s ease}
+.ext-course-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--text3)}
+.ext-course-meta .students::before{content:'\1f465 '}
+.ext-course-meta .lessons::before{content:'\1f4dd '}
+
+/* ========== 考试列表 ========== */
+.ext-exam-list{padding:0;background:var(--card);border-radius:12px;border:1px solid var(--border);overflow:hidden}
+.ext-exam-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border-light);transition:background .15s}
+.ext-exam-item:last-child{border-bottom:none}
+.ext-exam-item:hover{background:var(--bg-hover)}
+.ext-exam-info{flex:1;min-width:0}
+.ext-exam-name{font-size:14px;font-weight:500;color:var(--text);margin-bottom:2px}
+.ext-exam-meta{font-size:12px;color:var(--text3);display:flex;gap:16px;flex-wrap:wrap}
+.ext-exam-meta span{display:inline-flex;align-items:center;gap:3px}
+.ext-exam-stats{display:flex;gap:16px;align-items:center;flex-shrink:0}
+.ext-exam-stat{text-align:center}
+.ext-exam-stat .num{font-size:15px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums}
+.ext-exam-stat .label{font-size:10px;color:var(--text3)}
+.ext-exam-actions{display:flex;gap:6px;flex-shrink:0}
+.ext-exam-btn{padding:4px 12px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--text2);transition:all .15s}
+.ext-exam-btn:hover{border-color:var(--accent);color:var(--accent)}
+.ext-exam-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.ext-exam-btn.primary:hover{opacity:.85}
+
+/* ========== 成绩表格 ========== */
+.ext-grade-wrap{padding:16px;background:var(--card);border-radius:12px;border:1px solid var(--border);overflow-x:auto}
+.ext-grade-table{width:100%;border-collapse:collapse;font-size:13px}
+.ext-grade-table th{text-align:left;padding:10px 10px;font-weight:500;color:var(--text2);border-bottom:2px solid var(--border-light);white-space:nowrap}
+.ext-grade-table th:first-child,.ext-grade-table td:first-child{padding-left:4px}
+.ext-grade-table td{padding:10px 10px;border-bottom:1px solid var(--border-light);font-variant-numeric:tabular-nums}
+.ext-grade-table tr:hover td{background:var(--bg-hover)}
+.ext-grade-table .rank-1{color:var(--red);font-weight:700}
+.ext-grade-table .rank-2{color:var(--amber);font-weight:600}
+.ext-grade-table .rank-3{color:#a855f7;font-weight:600}
+.ext-grade-table .total{font-weight:700;color:var(--text)}
+.ext-grade-bar-wrap{display:flex;align-items:center;gap:6px}
+.ext-grade-bar{height:6px;background:var(--border-light);border-radius:4px;overflow:hidden;flex:1;min-width:50px}
+.ext-grade-bar .fill{height:100%;border-radius:4px;transition:width .6s ease}
+.ext-grade-bar .fill.excellent{background:var(--green)}
+.ext-grade-bar .fill.good{background:var(--accent)}
+.ext-grade-bar .fill.average{background:var(--amber)}
+.ext-grade-bar .fill.poor{background:var(--red)}
+.ext-grade-bar-val{font-size:11px;color:var(--text3);width:30px;text-align:right}
+
+/* ========== 排课日历（周视图） ========== */
+.ext-calendar-wrap{padding:16px;background:var(--card);border-radius:12px;border:1px solid var(--border)}
+.ext-calendar-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.ext-calendar-header .week-range{font-size:14px;font-weight:600;color:var(--text)}
+.ext-calendar-nav{display:flex;gap:4px}
+.ext-calendar-nav button{padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text2);cursor:pointer;font-size:12px;transition:all .15s}
+.ext-calendar-nav button:hover{border-color:var(--accent);color:var(--accent)}
+.ext-calendar-grid{display:grid;grid-template-columns:60px repeat(5,1fr);gap:1px;background:var(--border-light);border:1px solid var(--border-light);border-radius:8px;overflow:hidden}
+.ext-cal-time{background:var(--card);padding:8px 6px;font-size:11px;color:var(--text3);text-align:center;display:flex;align-items:flex-start;justify-content:center;min-height:60px}
+.ext-cal-time span{margin-top:-6px}
+.ext-cal-cell{background:var(--card);padding:4px;min-height:60px;cursor:pointer;transition:background .15s}
+.ext-cal-cell:hover{background:var(--bg-hover)}
+.ext-cal-cell.today{background:rgba(99,102,241,.05)}
+.ext-cal-event{margin:2px 0;padding:3px 6px;border-radius:4px;font-size:10px;color:#fff;cursor:pointer;transition:opacity .2s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ext-cal-event:hover{opacity:.85}
+.ext-cal-event .ev-time{opacity:.8;margin-right:4px}
+.ext-cal-event .ev-room{opacity:.7;font-size:9px}
+
+/* ========== 班级列表 ========== */
+.ext-class-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.ext-class-card{padding:16px;background:var(--card);border-radius:12px;border:1px solid var(--border);transition:all .2s;cursor:pointer}
+.ext-class-card:hover{box-shadow:var(--shadow-sm);border-color:var(--accent)}
+.ext-class-name{font-size:16px;font-weight:600;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.ext-class-name .grade-tag{padding:1px 8px;border-radius:4px;font-size:11px;font-weight:400;background:var(--accent-light);color:var(--accent)}
+.ext-class-detail{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--text2)}
+.ext-class-detail .row{display:flex;justify-content:space-between}
+.ext-class-detail .row .val{color:var(--text);font-weight:500}
+.ext-class-actions{display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border-light)}
+.ext-class-btn{flex:1;padding:6px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--text2);text-align:center;transition:all .15s}
+.ext-class-btn:hover{border-color:var(--accent);color:var(--accent)}
+.ext-class-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.ext-class-btn.primary:hover{opacity:.85}
+</style>
+<script>
+(function() {
+  'use strict';
+  // 排课日历周导航
+  document.querySelectorAll('.ext-calendar-wrap').forEach(function(wrap) {
+    var navBtns = wrap.querySelectorAll('.ext-calendar-nav button');
+    var rangeEl = wrap.querySelector('.week-range');
+    var weekOffset = 0;
+    function updateWeek() {
+      var now = new Date();
+      now.setDate(now.getDate() + weekOffset * 7);
+      var day = now.getDay();
+      var diff = now.getDate() - day + (day === 0 ? -6 : 1);
+      var mon = new Date(now.setDate(diff));
+      var fri = new Date(now.setDate(diff + 4));
+      rangeEl.textContent = mon.getMonth()+1 + '/' + mon.getDate() + ' - ' + (fri.getMonth()+1) + '/' + fri.getDate();
+    }
+    if (navBtns.length >= 2) {
+      navBtns[0].addEventListener('click', function() { weekOffset--; updateWeek(); });
+      navBtns[1].addEventListener('click', function() { weekOffset++; updateWeek(); });
+    }
+    updateWeek();
+  });
+
+  // 考试操作按钮
+  document.querySelectorAll('.ext-exam-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var action = this.textContent.trim();
+      if (action === '\u7f16\u8f91' || action === '\u67e5\u770b') {
+        this.style.opacity = '.6';
+        setTimeout(function() { btn.style.opacity = '1'; }, 200);
+      }
+    });
+  });
+})();
+</script>
+
+<!-- 使用示例 -->
+<!-- <link rel="stylesheet" href="desktop-extensions/education.html"> (用模板字符串注入) -->

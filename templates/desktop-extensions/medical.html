@@ -1,0 +1,172 @@
+<!-- 医疗管理后台扩展组件 -->
+<style>
+/* ========== 患者卡片 ========== */
+.ext-patient-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.ext-patient-card{padding:16px;background:var(--card);border-radius:12px;border:1px solid var(--border);transition:all .2s;cursor:pointer}
+.ext-patient-card:hover{box-shadow:var(--shadow-sm);border-color:var(--accent)}
+.ext-patient-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.ext-patient-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#6366f1);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;color:#fff;flex-shrink:0}
+.ext-patient-avatar.female{background:linear-gradient(135deg,#ec4899,#f472b6)}
+.ext-patient-info{flex:1;min-width:0}
+.ext-patient-name{font-size:15px;font-weight:600;color:var(--text);margin-bottom:2px}
+.ext-patient-demographic{font-size:12px;color:var(--text3)}
+.ext-patient-status{padding:3px 10px;border-radius:6px;font-size:11px;font-weight:500;flex-shrink:0}
+.ext-patient-status.inpatient{background:rgba(59,130,246,.12);color:var(--accent)}
+.ext-patient-status.outpatient{background:rgba(34,197,94,.12);color:var(--green)}
+.ext-patient-status.critical{background:rgba(239,68,68,.12);color:var(--red)}
+.ext-patient-status.discharged{background:rgba(156,163,175,.12);color:var(--text3)}
+.ext-patient-diagnosis{font-size:13px;color:var(--text2);padding:8px 10px;background:var(--bg);border-radius:8px;margin-bottom:8px}
+.ext-patient-diagnosis .label{font-size:11px;color:var(--text3);display:block;margin-bottom:2px}
+.ext-patient-diagnosis .value{font-weight:500;color:var(--text)}
+.ext-patient-meta{display:flex;gap:12px;font-size:11px;color:var(--text3)}
+.ext-patient-meta span{display:inline-flex;align-items:center;gap:3px}
+
+/* ========== 预约时间线 ========== */
+.ext-appt-timeline-wrap{padding:16px;background:var(--card);border-radius:12px;border:1px solid var(--border)}
+.ext-appt-timeline-title{font-size:15px;font-weight:600;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border-light);display:flex;justify-content:space-between;align-items:center}
+.ext-appt-timeline-title .date{font-size:13px;font-weight:400;color:var(--text3)}
+.ext-appt-timeline{position:relative;padding-left:28px}
+.ext-appt-timeline::before{content:'';position:absolute;left:9px;top:8px;bottom:8px;width:2px;background:var(--border-light)}
+.ext-appt-item{position:relative;padding-bottom:18px}
+.ext-appt-item:last-child{padding-bottom:0}
+.ext-appt-item::before{content:'';position:absolute;left:-19px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--card);border:3px solid var(--accent);z-index:1}
+.ext-appt-item.done::before{border-color:var(--green);background:var(--green)}
+.ext-appt-item.cancelled::before{border-color:var(--text3);background:var(--text3)}
+.ext-appt-item.waiting::before{border-color:var(--amber);background:var(--card)}
+.ext-appt-time-slot{display:flex;align-items:baseline;gap:6px;margin-bottom:4px}
+.ext-appt-time{font-size:13px;font-weight:600;color:var(--text)}
+.ext-appt-slot{font-size:11px;color:var(--text3)}
+.ext-appt-body{display:flex;gap:10px;align-items:flex-start}
+.ext-appt-body .info{flex:1}
+.ext-appt-body .info .patient{font-size:13px;font-weight:500;color:var(--text)}
+.ext-appt-body .info .dept{font-size:12px;color:var(--text3)}
+.ext-appt-status-tag{padding:2px 10px;border-radius:4px;font-size:11px;font-weight:500}
+.ext-appt-status-tag.done{background:rgba(34,197,94,.12);color:var(--green)}
+.ext-appt-status-tag.waiting{background:rgba(245,158,11,.12);color:var(--amber)}
+.ext-appt-status-tag.cancelled{background:rgba(156,163,175,.12);color:var(--text3)}
+
+/* ========== 处方表单 ========== */
+.ext-prescription-wrap{padding:16px;background:var(--card);border-radius:12px;border:1px solid var(--border)}
+.ext-prescription-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.ext-prescription-header .title{font-size:15px;font-weight:600}
+.ext-prescription-header .btn-add{padding:5px 14px;border-radius:6px;font-size:12px;cursor:pointer;border:none;background:var(--accent);color:#fff;transition:opacity .2s}
+.ext-prescription-header .btn-add:hover{opacity:.85}
+.ext-prescription-table{width:100%;border-collapse:collapse;font-size:13px}
+.ext-prescription-table th{text-align:left;padding:8px 8px;font-weight:500;color:var(--text2);border-bottom:2px solid var(--border-light);font-size:12px;white-space:nowrap}
+.ext-prescription-table td{padding:8px 8px;border-bottom:1px solid var(--border-light);vertical-align:middle}
+.ext-prescription-table tr:hover td{background:var(--bg-hover)}
+.ext-prescription-table input[type="text"],.ext-prescription-table input[type="number"]{width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:12px;background:var(--card);color:var(--text);outline:none;transition:border-color .15s;box-sizing:border-box}
+.ext-prescription-table input[type="text"]:focus,.ext-prescription-table input[type="number"]:focus{border-color:var(--accent)}
+.ext-prescription-table input[type="number"]{width:50px;text-align:center}
+.ext-prescription-remove{color:var(--red);cursor:pointer;font-size:16px;opacity:.6;transition:opacity .15s;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px}
+.ext-prescription-remove:hover{opacity:1}
+.ext-prescription-footer{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--border-light)}
+.ext-prescription-footer .total{font-size:13px;color:var(--text2)}
+.ext-prescription-footer .total strong{font-size:15px;color:var(--text);font-variant-numeric:tabular-nums}
+
+/* ========== 挂号表格 ========== */
+.ext-registration-wrap{padding:16px;background:var(--card);border-radius:12px;border:1px solid var(--border);overflow-x:auto}
+.ext-reg-table{width:100%;border-collapse:collapse;font-size:13px}
+.ext-reg-table th{text-align:left;padding:10px 10px;font-weight:500;color:var(--text2);border-bottom:2px solid var(--border-light);white-space:nowrap}
+.ext-reg-table td{padding:10px 10px;border-bottom:1px solid var(--border-light)}
+.ext-reg-table tr:hover td{background:var(--bg-hover)}
+.ext-reg-table .queue-num{font-weight:700;color:var(--accent);font-size:15px;font-variant-numeric:tabular-nums}
+.ext-reg-table .wait-status{padding:2px 10px;border-radius:4px;font-size:11px;font-weight:500}
+.ext-reg-table .wait-status.waiting{background:rgba(245,158,11,.12);color:var(--amber)}
+.ext-reg-table .wait-status.called{background:rgba(59,130,246,.12);color:var(--accent)}
+.ext-reg-table .wait-status.visiting{background:rgba(34,197,94,.12);color:var(--green)}
+.ext-reg-table .wait-status.done{background:rgba(156,163,175,.12);color:var(--text3)}
+.ext-reg-btn{padding:3px 12px;border-radius:4px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--text2);transition:all .15s}
+.ext-reg-btn:hover{border-color:var(--accent);color:var(--accent)}
+.ext-reg-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.ext-reg-btn.primary:hover{opacity:.85}
+
+/* ========== 检查报告卡片 ========== */
+.ext-report-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.ext-report-card{padding:14px;background:var(--card);border-radius:12px;border:1px solid var(--border);transition:all .2s}
+.ext-report-card:hover{box-shadow:var(--shadow-sm)}
+.ext-report-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.ext-report-name{font-size:14px;font-weight:600;color:var(--text)}
+.ext-report-date{font-size:11px;color:var(--text3)}
+.ext-report-result{padding:8px 10px;border-radius:8px;margin-bottom:8px;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+.ext-report-result.normal{background:rgba(34,197,94,.08)}
+.ext-report-result.abnormal{background:rgba(239,68,68,.08);border-left:3px solid var(--red)}
+.ext-report-result .value{font-weight:600;font-variant-numeric:tabular-nums}
+.ext-report-result .value.high{color:var(--red)}
+.ext-report-result .value.low{color:var(--accent)}
+.ext-report-result .unit{font-size:12px;color:var(--text3);margin-left:4px}
+.ext-report-reference{font-size:11px;color:var(--text3);display:flex;justify-content:space-between;padding-top:6px;border-top:1px solid var(--border-light)}
+.ext-report-reference .range{color:var(--text2)}
+.ext-report-abnormal-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;background:rgba(239,68,68,.12);color:var(--red)}
+.ext-report-abnormal-badge.up::after{content:'\2191'}
+.ext-report-abnormal-badge.down::after{content:'\2193'}
+</style>
+<script>
+(function() {
+  'use strict';
+  // 处方表单 - 添加/删除行
+  document.querySelectorAll('.ext-prescription-wrap').forEach(function(wrap) {
+    var addBtn = wrap.querySelector('.btn-add');
+    var table = wrap.querySelector('.ext-prescription-table');
+    var tbody = table ? table.querySelector('tbody') : null;
+    if (!tbody) return;
+
+    addBtn && addBtn.addEventListener('click', function() {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><input type="text" placeholder="\u836f\u54c1\u540d\u79f0"></td>' +
+        '<td><input type="text" placeholder="\u89c4\u683c" style="width:70px"></td>' +
+        '<td><input type="text" placeholder="\u7528\u91cf" style="width:50px"></td>' +
+        '<td><select style="border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:12px;background:var(--card);color:var(--text)"><option>\u6bcf\u65e51\u6b21</option><option>\u6bcf\u65e52\u6b21</option><option>\u6bcf\u65e53\u6b21</option><option>\u6bcf\u65e5\u4e00\u6b21</option><option>\u9700\u65f6\u670d\u7528</option></select></td>' +
+        '<td><input type="number" value="7" min="1" max="90" style="width:50px"></td>' +
+        '<td><input type="number" value="1" min="1" max="99" style="width:40px"></td>' +
+        '<td><span class="ext-prescription-remove">&times;</span></td>';
+      tbody.appendChild(tr);
+      var removeBtn = tr.querySelector('.ext-prescription-remove');
+      removeBtn && removeBtn.addEventListener('click', function() {
+        tr.remove();
+      });
+    });
+
+    // 已有行的删除按钮
+    tbody.querySelectorAll('.ext-prescription-remove').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var tr = this.closest('tr');
+        if (tr && tbody.querySelectorAll('tr').length > 1) {
+          tr.remove();
+        }
+      });
+    });
+  });
+
+  // 挂号操作按钮
+  document.querySelectorAll('.ext-reg-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var td = this.closest('td');
+      var statusEl = this.closest('tr').querySelector('.wait-status');
+      if (statusEl) {
+        var text = this.textContent.trim();
+        if (text === '\u53eb\u53f7') {
+          statusEl.className = 'wait-status called';
+          statusEl.textContent = '\u5df2\u53eb\u53f7';
+          this.textContent = '\u5f00\u59cb\u95e8\u8bca';
+          this.className = 'ext-reg-btn primary';
+        } else if (text === '\u5f00\u59cb\u95e8\u8bca') {
+          statusEl.className = 'wait-status visiting';
+          statusEl.textContent = '\u95e8\u8bca\u4e2d';
+          this.textContent = '\u5df2\u5b8c\u6210';
+          this.className = 'ext-reg-btn';
+        } else if (text === '\u5df2\u5b8c\u6210') {
+          statusEl.className = 'wait-status done';
+          statusEl.textContent = '\u5df2\u5b8c\u6210';
+          this.remove();
+        }
+      }
+    });
+  });
+})();
+</script>
+
+<!-- 使用示例 -->
+<!-- <link rel="stylesheet" href="desktop-extensions/medical.html"> (用模板字符串注入) -->
